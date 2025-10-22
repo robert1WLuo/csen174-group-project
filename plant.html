@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Plants - Plant Diary</title>
+    
+    <link rel="stylesheet" href="plantStyle.css" />
+</head>
+<body>
+    <header>
+        <h1>🌱 My Plants</h1>
+        <button class="back-button" onclick="goBack()">← Back to Profile</button>
+    </header>
+
+    <main>
+        <div class="header-section">
+            <h2>Plant Collection</h2>
+            <button class="add-plant-btn" onclick="openAddModal()" id="addPlantBtn">+ Add New Plant</button>
+        </div>
+
+        <div id="plantsContainer" class="plants-grid">
+            <!-- Plant cards will be added here dynamically -->
+        </div>
+
+        <div id="emptyState" class="empty-state">
+            <h3>No plants yet! 🌿</h3>
+            <p>Start building your plant collection by adding your first plant.</p>
+        </div>
+    </main>
+
+    <!-- Modal for adding/editing plants -->
+    <div id="plantModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New Plant</h2>
+            <form id="plantForm">
+                <div class="form-group">
+                    <label for="plantName">Plant Name *</label>
+                    <input type="text" id="plantName" required placeholder="e.g., Monstera Deliciosa">
+                </div>
+
+                <div class="form-group">
+                    <label for="plantImage">Plant Photo</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="plantImage" accept="image/*" onchange="previewImage(event)">
+                        <label class="file-input-label" for="plantImage">
+                            📷 Click to upload photo
+                        </label>
+                    </div>
+                    <div id="imagePreview" class="image-preview"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="plantDescription">Description</label>
+                    <textarea id="plantDescription" placeholder="Tell us about your plant..."></textarea>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="submit" class="save-btn">Save Plant</button>
+                    <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const MAX_PLANTS = 5;
+        let plants = [];
+        let editingIndex = -1;
+        let currentImageData = null;
+
+        // Load plants from memory on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPlants();
+            updateAddButton();
+        });
+
+        function goBack() {
+            window.history.back();
+        }
+
+        function openAddModal() {
+            if (plants.length >= MAX_PLANTS) {
+                alert(`You can only add up to ${MAX_PLANTS} plants.`);
+                return;
+            }
+            editingIndex = -1;
+            currentImageData = null;
+            document.getElementById('modalTitle').textContent = 'Add New Plant';
+            document.getElementById('plantForm').reset();
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('plantModal').classList.add('active');
+        }
+
+        function openEditModal(index) {
+            editingIndex = index;
+            const plant = plants[index];
+            currentImageData = plant.image;
+            
+            document.getElementById('modalTitle').textContent = 'Edit Plant';
+            document.getElementById('plantName').value = plant.name;
+            document.getElementById('plantDescription').value = plant.description;
+            
+            if (plant.image) {
+                const preview = document.getElementById('imagePreview');
+                preview.innerHTML = `<img src="${plant.image}" alt="Preview">`;
+                preview.style.display = 'block';
+            }
+            
+            document.getElementById('plantModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('plantModal').classList.remove('active');
+            document.getElementById('plantForm').reset();
+            document.getElementById('imagePreview').style.display = 'none';
+            editingIndex = -1;
+            currentImageData = null;
+        }
+
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentImageData = e.target.result;
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+                currentImageData = null;
+            }
+        }
+
+        document.getElementById('plantForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const plantData = {
+                name: document.getElementById('plantName').value,
+                description: document.getElementById('plantDescription').value,
+                image: currentImageData,
+                dateAdded: editingIndex === -1 ? new Date().toISOString() : plants[editingIndex].dateAdded
+            };
+
+            if (editingIndex === -1) {
+                plants.push(plantData);
+            } else {
+                plants[editingIndex] = plantData;
+            }
+
+            renderPlants();
+            updateAddButton();
+            closeModal();
+        });
+
+        function deletePlant(index) {
+            if (confirm('Are you sure you want to delete this plant?')) {
+                plants.splice(index, 1);
+                renderPlants();
+                updateAddButton();
+            }
+        }
+
+        function renderPlants() {
+            const container = document.getElementById('plantsContainer');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (plants.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            container.innerHTML = plants.map((plant, index) => `
+                <div class="plant-card">
+                    <div class="plant-image-container ${plant.image ? '' : 'empty'}">
+                        ${plant.image ? `<img src="${plant.image}" alt="${plant.name}">` : '🌱'}
+                    </div>
+                    <div class="plant-info">
+                        <h3>${plant.name}</h3>
+                        <p>${plant.description || 'No description provided.'}</p>
+                    </div>
+                    <div class="plant-actions">
+                        <button class="edit-btn" onclick="openEditModal(${index})">Edit</button>
+                        <button class="delete-btn" onclick="deletePlant(${index})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateAddButton() {
+            const addBtn = document.getElementById('addPlantBtn');
+            if (plants.length >= MAX_PLANTS) {
+                addBtn.disabled = true;
+                addBtn.textContent = `Maximum ${MAX_PLANTS} plants reached`;
+            } else {
+                addBtn.disabled = false;
+                addBtn.textContent = '+ Add New Plant';
+            }
+        }
+    </script>
+</body>
+</html>
