@@ -1,4 +1,3 @@
-
 function showFeed() {
   document.getElementById('feed').classList.add('active');
   document.getElementById('profile').classList.remove('active');
@@ -58,50 +57,58 @@ function toggleFollow(button) {
   }
 }
 
-//this part of code handles plant modules in user profile
-//initially they have 0 module, and maximum module allowed is 5
-let petCount = 0;
-const maxPets = 5;
+// This part of code handles plant modules in user profile
+// Initially they have 0 modules, and maximum modules allowed is 5
+let plantCount = 0;
+const maxPlants = 5;
 
-//add new plant module
-function addPetModule() {
-  if (petCount >= maxPets) {
+// Add new plant module
+function addPlantModule() {
+  if (plantCount >= maxPlants) {
     alert("You can only add up to 5 plants.");
     return;
   }
 
-  const container = document.getElementById('petContainer');
-  const petId = `pet-${petCount}`;
+  const container = document.getElementById('plantContainer');
+  const plantId = `plant-${plantCount}`;
 
   const module = document.createElement('div');
-  module.className = 'pet-module';
+  module.className = 'plant-module';
   module.innerHTML = `
-    <label>Pet Photo:</label>
-    <input type="file" accept="image/*" onchange="previewPetImage(event, '${petId}')">
-    <div id="${petId}-preview"></div>
+    <label>Plant Photo:</label>
+    <input type="file" accept="image/*" onchange="previewPlantImage(event, '${plantId}')">
+    <div id="${plantId}-preview"></div>
     <label>Description:</label>
     <textarea placeholder="Describe your plant..."></textarea>
   `;
 
   container.appendChild(module);
-  petCount++;
+  plantCount++;
 }
 
-//plant image 
-function previewPetImage(event, petId) {
-  const previewDiv = document.getElementById(`${petId}-preview`);
+// Plant image preview
+function previewPlantImage(event, plantId) {
+  const previewDiv = document.getElementById(`${plantId}-preview`);
+  if (!previewDiv) {
+    console.error('Preview div not found for:', plantId);
+    return;
+  }
+  
   previewDiv.innerHTML = ''; // Clear previous image
 
   const file = event.target.files[0];
   if (file) {
     const img = document.createElement('img');
     img.src = URL.createObjectURL(file);
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+    img.style.marginTop = '0.5rem';
     img.onload = () => URL.revokeObjectURL(img.src); // Free memory
     previewDiv.appendChild(img);
   }
 }
 
-/* //authentication configure
+/* Authentication configure (commented out - requires Firebase setup)
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -112,7 +119,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
-//authentication implementation
+// Authentication implementation
 function signUp() {
   const email = document.getElementById('signupEmail').value;
   const password = document.getElementById('signupPassword').value;
@@ -139,4 +146,4 @@ function logOut() {
       document.getElementById('authStatus').textContent = 'Logged out';
     });
 }
-    */
+*/
