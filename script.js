@@ -1,149 +1,62 @@
-function showFeed() {
-  document.getElementById('feed').classList.add('active');
+// Navigation functions
+function showProfile() {
+  document.getElementById('profile').classList.add('active');
+  document.getElementById('chat').classList.remove('active');
+}
+
+function showChat() {
+  document.getElementById('chat').classList.add('active');
   document.getElementById('profile').classList.remove('active');
 }
 
-function showProfile() {
-  document.getElementById('profile').classList.add('active');
-  document.getElementById('feed').classList.remove('active');
-}
-
-// Post creation
-document.getElementById('postForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  alert('Post submitted!');
-});
-
-// Like functionality
-function likePost(button) {
-  const countSpan = button.nextElementSibling;
-  let count = parseInt(countSpan.textContent);
-  countSpan.textContent = count + 1;
-}
-
-// Comment functionality
-function addComment(button) {
-  const input = button.previousElementSibling;
-  const comment = input.value.trim();
-  if (comment) {
-    const list = button.parentElement.nextElementSibling;
-    const li = document.createElement('li');
-    li.textContent = comment;
-    list.appendChild(li);
-    input.value = '';
-  }
-}
-
-// Search functionality
-function searchContent() {
-  const query = document.getElementById('searchInput').value.toLowerCase();
-  const posts = document.querySelectorAll('.post');
-  posts.forEach(post => {
-    const text = post.textContent.toLowerCase();
-    post.style.display = text.includes(query) ? 'block' : 'none';
-  });
-}
-
-// Follow system
-function toggleFollow(button) {
-  const countSpan = button.nextElementSibling;
-  let count = parseInt(countSpan.textContent.split(': ')[1]);
-  if (button.textContent === 'Follow') {
-    button.textContent = 'Unfollow';
-    countSpan.textContent = `Followers: ${count + 1}`;
-  } else {
-    button.textContent = 'Follow';
-    countSpan.textContent = `Followers: ${count - 1}`;
-  }
-}
-
-// This part of code handles plant modules in user profile
-// Initially they have 0 modules, and maximum modules allowed is 5
-let plantCount = 0;
-const maxPlants = 5;
-
-// Add new plant module
-function addPlantModule() {
-  if (plantCount >= maxPlants) {
-    alert("You can only add up to 5 plants.");
+// Chat functionality
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  
+  if (message === '') {
     return;
   }
 
-  const container = document.getElementById('plantContainer');
-  const plantId = `plant-${plantCount}`;
+  const chatMessages = document.getElementById('chatMessages');
+  const now = new Date();
+  const timestamp = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+                    ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  const module = document.createElement('div');
-  module.className = 'plant-module';
-  module.innerHTML = `
-    <label>Plant Photo:</label>
-    <input type="file" accept="image/*" onchange="previewPlantImage(event, '${plantId}')">
-    <div id="${plantId}-preview"></div>
-    <label>Description:</label>
-    <textarea placeholder="Describe your plant..."></textarea>
+  // Create message element
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message message-own';
+  messageDiv.innerHTML = `
+    <div class="message-header">
+      <span class="username">Robert</span>
+      <span class="timestamp">${timestamp}</span>
+    </div>
+    <div class="message-content">${escapeHtml(message)}</div>
   `;
 
-  container.appendChild(module);
-  plantCount++;
+  chatMessages.appendChild(messageDiv);
+  input.value = '';
+
+  // Auto scroll to bottom
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Plant image preview
-function previewPlantImage(event, plantId) {
-  const previewDiv = document.getElementById(`${plantId}-preview`);
-  if (!previewDiv) {
-    console.error('Preview div not found for:', plantId);
-    return;
-  }
-  
-  previewDiv.innerHTML = ''; // Clear previous image
-
-  const file = event.target.files[0];
-  if (file) {
-    const img = document.createElement('img');
-    img.src = URL.createObjectURL(file);
-    img.style.maxWidth = '100%';
-    img.style.height = 'auto';
-    img.style.marginTop = '0.5rem';
-    img.onload = () => URL.revokeObjectURL(img.src); // Free memory
-    previewDiv.appendChild(img);
-  }
-}
-
-/* Authentication configure (commented out - requires Firebase setup)
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  appId: "YOUR_APP_ID"
-};
-
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-
-// Authentication implementation
-function signUp() {
-  const email = document.getElementById('signupEmail').value;
-  const password = document.getElementById('signupPassword').value;
-  auth.createUserWithEmailAndPassword(email, password)
-    .then(user => {
-      document.getElementById('authStatus').textContent = `Signed up as ${user.user.email}`;
-    })
-    .catch(error => alert(error.message));
-}
-
-function logIn() {
-  const email = document.getElementById('loginEmail').value;
-  const password = document.getElementById('loginPassword').value;
-  auth.signInWithEmailAndPassword(email, password)
-    .then(user => {
-      document.getElementById('authStatus').textContent = `Logged in as ${user.user.email}`;
-    })
-    .catch(error => alert(error.message));
-}
-
-function logOut() {
-  auth.signOut()
-    .then(() => {
-      document.getElementById('authStatus').textContent = 'Logged out';
+// Handle Enter key in chat input
+document.addEventListener('DOMContentLoaded', function() {
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput) {
+    chatInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
     });
+  }
+});
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
-*/
+ 

@@ -12,94 +12,58 @@
     <header>
         <h1>Plant Diary</h1>
         <nav>
-            <button onclick="showFeed()">Feed</button>
             <button onclick="showProfile()">Profile</button>
+            <button onclick="showChat()">Chat Room</button>
         </nav>
     </header>
 
     <main>
-        <input type="text" id="searchInput" placeholder="Search posts or users..." oninput="searchContent()" />
-
-        <section id="feed" class="active">
-            <h2> Latest Posts</h2>
-            <div class="post">
-                <h3>header 1</h3>
-                <p>some brief description...</p>
-
-                <div class="interactions">
-                    <button onclick="likePost(this)">❤️ Like</button>
-                    <span class="like-count">0</span>
-                    <div class="comments">
-                        <input type="text" placeholder="Add a comment..." />
-                        <button onclick="addComment(this)">💬</button>
-                    </div>
-                    <ul class="comment-list"></ul>
-                </div>
-            </div>
-
-        </section>
-
-        <section id="create-post">
-            <h2>Create a Post</h2>
-            <form id="postForm">
-                <textarea placeholder="What's on your mind?" required></textarea>
-                <input type="file" accept="image/*" />
-                <button type="submit">Post</button>
-            </form>
-        </section>
-
-        <section id="profile">
-            <h2> Your Profile</h2>
+        <!-- Profile Section (Shows First) -->
+        <section id="profile" class="active">
+            <h2>Your Profile</h2>
             <div class="profile-card">
-                <img src="images/github.png" alt="Profile Picture" style="width:42px;height:42px;" >
+                <img src="images/github.png" alt="Profile Picture" style="width:42px;height:42px;">
                 <h3>Robert</h3>
                 <p>some description</p>
-                <button>Edit Profile</button>
-            </div>
-            <div class="follow-section">
-                <button onclick="toggleFollow(this)">Follow</button>
-                <span class="follower-count">Followers: 0</span>
-            </div>  
-            <div id="plants">
-                <h3>🐾 My Plants</h3>
-                <button onclick="addPlantModule()"> Add Plant</button>
-                <div id="plantContainer"></div>
             </div>
 
-
+            <!-- Plant Management Section -->
+            <div class="plant-management">
+                <h3>🌱 My Plants</h3>
+                <p>Manage your plant collection and set care reminders</p>
+                <button class="manage-plants-btn" onclick="window.location.href='plant.html'">
+                    Manage My Plants
+                </button>
+            </div>
         </section>
 
-        <section id="auth">
-            <h2>Authentication</h2>
+        <!-- Chat Room Section -->
+        <section id="chat">
+            <h2>Chat Room</h2>
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                     
 
-            <div id="signup">
-                <h3>Create Account</h3>
-                <input type="email" id="signupEmail" placeholder="Email" />
-                <input type="password" id="signupPassword" placeholder="Password" />
-                <button onclick="signUp()">Sign Up</button>
+                    <div class="message message-other">
+                        <div class="message-header">
+                            <span class="username">sample</span> 
+                        </div>
+                        <div class="message-content">hello :)</div>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" placeholder="Type your message" />
+                    <button onclick="sendMessage()">Send</button>
+                </div>
             </div>
-
-            <div id="login">
-                <h3>Login</h3>
-                <input type="email" id="loginEmail" placeholder="Email" />
-                <input type="password" id="loginPassword" placeholder="Password" />
-                <button onclick="logIn()">Log In</button>
-            </div>
-
-            <button onclick="logOut()">Log Out</button>
-            <p id="authStatus">Not logged in</p>
         </section>
-
     </main>
 
     <footer>
         <p>&copy; 2025 Plant Diary</p>
     </footer>
 
-    <!--
-    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
--->
     <script src="script.js"></script>
 </body>
 

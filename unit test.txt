@@ -1,0 +1,366 @@
+//sign up function: take user email and password and sign up their account
+//unit testing framework by jest
+describe('signUp', () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <input id="signupEmail" />
+      <input id="signupPassword" />
+      <div id="authStatus"></div>
+    `;
+  });
+
+  //case 1: normal case
+  it('should sign up successfully with valid email and password', async () => {
+    document.getElementById('signupEmail').value = 'test@gmail.com';
+    document.getElementById('signupPassword').value = 'password';
+
+    auth.createUserWithEmailAndPassword = jest.fn().mockResolvedValue({
+      user: { email: 'test@example.com' }
+    });
+
+    await signUp();
+    expect(document.getElementById('authStatus').textContent).toBe('Signed up as test@gmail.com');
+  });
+
+  //case 2: invalid case with empty email
+  it('should handle empty email input', async () => {
+    document.getElementById('signupEmail').value = '';
+    document.getElementById('signupPassword').value = 'password';
+
+    auth.createUserWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Email cannot be empty'));
+
+    await signUp();
+    expect(auth.createUserWithEmailAndPassword).toHaveBeenCalledWith('', 'password');
+  });
+
+  //case 3: invalid case with empty password
+  it('should handle empty password input', async () => {
+    document.getElementById('signupEmail').value = 'test@gamil.com';
+    document.getElementById('signupPassword').value = '';
+
+    auth.createUserWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Password cannot be empty'));
+
+    await signUp();
+    expect(auth.createUserWithEmailAndPassword).toHaveBeenCalledWith('test@gmail.com', '');
+  });
+
+  //case 4: invalid case with invalid email format
+  it('should show alert on invalid email format', async () => {
+    document.getElementById('signupEmail').value = 'invalid@Email';
+    document.getElementById('signupPassword').value = 'password';
+
+    window.alert = jest.fn();
+    auth.createUserWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Invalid email format'));
+
+    await signUp();
+    expect(window.alert).toHaveBeenCalledWith('Invalid email format');
+  });
+
+  //case 5: invalid case with weak password (password too short)
+  it('should show alert on weak password', async () => {
+    document.getElementById('signupEmail').value = 'test@gmail.com';
+    document.getElementById('signupPassword').value = '1';
+
+    window.alert = jest.fn();
+    auth.createUserWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Password too weak, should be at least 7 characters'));
+
+    await signUp();
+    expect(window.alert).toHaveBeenCalledWith('Password too weak');
+  });
+});
+
+//sign in function: take user email and password and sign in their account if they match result in database
+//unit testing framework by jest
+describe('logIn', () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <input id="loginEmail" />
+      <input id="loginPassword" />
+      <div id="authStatus"></div>
+    `;
+  });
+
+  //case 1: normal case
+  it('should log in successfully with valid credentials', async () => {
+    document.getElementById('loginEmail').value = 'test@gmail.com';
+    document.getElementById('loginPassword').value = 'password';
+
+    auth.signInWithEmailAndPassword = jest.fn().mockResolvedValue({
+      user: { email: 'test@gmail.com' }
+    });
+
+    await logIn();
+    expect(document.getElementById('authStatus').textContent).toBe('Logged in as test@gmail.com');
+  });
+
+  //case 2: invalid case: empty email
+  it('should handle empty email input', async () => {
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = 'password';
+
+    auth.signInWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Email required'));
+
+    await logIn();
+    expect(auth.signInWithEmailAndPassword).toHaveBeenCalledWith('', 'password');
+  });
+
+  //case 3: invalid case: empty password
+  it('should handle empty password input', async () => {
+    document.getElementById('loginEmail').value = 'test@gmail.com';
+    document.getElementById('loginPassword').value = '';
+
+    auth.signInWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Password required'));
+
+    await logIn();
+    expect(auth.signInWithEmailAndPassword).toHaveBeenCalledWith('test@gmail.com', '');
+  });
+
+  //case 4: invalid case, wrong password
+  it('should show alert on incorrect credentials', async () => {
+    document.getElementById('loginEmail').value = 'test@gmail.com';
+    document.getElementById('loginPassword').value = 'wrongPassword';
+
+    window.alert = jest.fn();
+    auth.signInWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Incorrect email or password'));
+
+    await logIn();
+    expect(window.alert).toHaveBeenCalledWith('Incorrect email or password');
+  });
+
+  //case 5: invalid case, no network connection
+  it('should show alert on network error', async () => {
+    document.getElementById('loginEmail').value = 'test@gmail.com';
+    document.getElementById('loginPassword').value = 'password';
+
+    window.alert = jest.fn();
+    auth.signInWithEmailAndPassword = jest.fn().mockRejectedValue(new Error('Network error'));
+
+    await logIn();
+    expect(window.alert).toHaveBeenCalledWith('Network error');
+  });
+});
+
+
+
+//add plant function: add new plant with plant name, image, and description in database
+//unit testing framework by jest
+describe('addPlant', () => {
+  let mockFile;
+
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <input id="plantName" />
+      <input id="plantDescription" />
+      <input id="plantImage" type="file" />
+      <div id="status"></div>
+    `;
+    mockFile = new File(['dummy content'], 'plant.jpg', { type: 'image/jpeg' });
+    wrongMockFile = new File(['dummy content'], 'plant.pdf', { type: 'word/pdf' });
+    global.plantDatabase = [];
+    window.alert = jest.fn();
+    URL.createObjectURL = jest.fn(() => 'blob:http://localhost/plant.jpg');
+  });
+
+  //case 1: normal case
+  it('should add a plant with valid name, image, and description', () => {
+    document.getElementById('plantName').value = 'Fern';
+    document.getElementById('plantDescription').value = 'A lush green fern';
+    Object.defineProperty(document.getElementById('plantImage'), 'files', {
+      value: [mockFile]
+    });
+
+    addPlant();
+
+    expect(plantDatabase.length).toBe(1);
+    expect(plantDatabase[0].name).toBe('Fern');
+    expect(document.getElementById('status').textContent).toBe('Added plant: Fern');
+  });
+
+  //case 2: invalid case, plant name missing
+  it('should show alert if name is missing', () => {
+    document.getElementById('plantName').value = '';
+    document.getElementById('plantDescription').value = 'Fern';
+    Object.defineProperty(document.getElementById('plantImage'), 'files', {
+      value: [mockFile]
+    });
+
+    addPlant();
+
+    expect(window.alert).toHaveBeenCalledWith('Name field is required.');
+    expect(plantDatabase.length).toBe(0);
+  });
+
+  //case 3, edge case, description missing
+  it('should show alert if description is missing', () => {
+    document.getElementById('plantName').value = 'Fern';
+    document.getElementById('plantDescription').value = '';
+    Object.defineProperty(document.getElementById('plantImage'), 'files', {
+      value: [mockFile]
+    });
+
+    addPlant();
+
+    expect(plantDatabase.length).toBe(1);
+    expect(plantDatabase[0].name).toBe('Fern');
+    expect(document.getElementById('status').textContent).toBe('Added plant: Fern');
+  });
+
+
+  //case 4, edge case, image missing
+  it('should show alert if image is missing', () => {
+    document.getElementById('plantName').value = 'Fern';
+    document.getElementById('plantDescription').value = 'Tall and fast-growing';
+    Object.defineProperty(document.getElementById('plantImage'), 'files', {
+      value: []
+    });
+
+    addPlant();
+
+    expect(plantDatabase.length).toBe(1);
+    expect(plantDatabase[0].name).toBe('Fern');
+    expect(document.getElementById('status').textContent).toBe('Added plant: Fern')
+  });
+
+
+  //case 5: invalid case, image format is wrong(ie. pdf format)
+  it('should trim whitespace from inputs before adding', () => {
+    document.getElementById('plantName').value = 'Fern ';
+    document.getElementById('plantDescription').value = '  Healing plant  ';
+    Object.defineProperty(document.getElementById('plantImage'), 'files', {
+      value: [wrongMockFile]
+    });
+
+    addPlant();
+    
+    expect(window.alert).toHaveBeenCalledWith('image in wrong format');
+    expect(plantDatabase.length).toBe(0);
+  });
+});
+
+//addRoutine function, where user can add new text field to the plant(with id and container stored in database)
+describe('addRoutine', () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <div id="plant-1" class="plant-card"></div>
+      <div id="plant-2" class="plant-card"></div>
+    `;
+    window.alert = jest.fn();
+  });
+
+  //case 1: normal case, a routine field is added to a plant
+  it('should add a routine input field to the correct plant container', () => {
+    addRoutine(1);
+    const container = document.getElementById('plant-1');
+    const input = container.querySelector('.routine-field');
+
+    expect(input).not.toBeNull();
+    expect(input.placeholder).toBe('Enter daily or weekly routine');
+  });
+
+  //case 2: normal case, multiple routine field are added
+  it('should allow multiple routine fields to be added to the same plant', () => {
+    addRoutine(1);
+    addRoutine(1);
+    const inputs = document.querySelectorAll('#plant-1 .routine-field');
+
+    expect(inputs.length).toBe(2);
+  });
+
+  //case 3: normal case,
+  it('should not affect other plant containers', () => {
+    addRoutine(1);
+    const plant1Inputs = document.querySelectorAll('#plant-1 .routine-field');
+    const plant2Inputs = document.querySelectorAll('#plant-2 .routine-field');
+
+    expect(plant1Inputs.length).toBe(1);
+    expect(plant2Inputs.length).toBe(0);
+  });
+
+  //case 4: invalid case, no such plant
+  it('should alert if the plant container does not exist', () => {
+    addRoutine(999); // nonexistent plant
+    expect(window.alert).toHaveBeenCalledWith('Plant container not found.');
+  });
+
+  //case 5: normal case with input
+  it('should append input with correct class and attributes', () => {
+    addRoutine(2);
+    const input = document.querySelector('#plant-2 .routine-field');
+
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input.type).toBe('text');
+    expect(input.placeholder).toBe('Enter daily or weekly routine');
+    expect(input.className).toBe('routine-field');
+  });
+});
+
+//sendRoutineEmail function, reads the routine from a text input, validates it, and sends an email to user email
+describe('sendRoutineEmail', () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <div id="plant-1">
+        <input class="routine-field" />
+        <div class="status"></div>
+      </div>
+    `;
+    window.currentUserEmail = 'test@gmail.com';
+    emailService.send = jest.fn();
+    window.alert = jest.fn();
+  });
+
+  //normal case, read the routine and send the email successfully
+  it('should send an email with the routine content', () => {
+    document.querySelector('.routine-field').value = 'Water daily at 8 AM';
+
+    sendRoutineEmail(1);
+
+    expect(emailService.send).toHaveBeenCalledWith({
+      to: 'test@gmail.com',
+      subject: 'Routine for Plant 1',
+      body: 'Your routine: Water daily at 8 AM'
+    });
+    expect(document.querySelector('.status').textContent).toBe('Routine email sent!');
+  });
+
+  //edge case, read routine and trim white space
+  it('should trim whitespace from routine input', () => {
+    document.querySelector('.routine-field').value = '   Weekly pruning   ';
+
+    sendRoutineEmail(1);
+
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'Your routine: Weekly pruning' })
+    );
+  });
+
+  //case 3, invalid case, routine empty
+  it('should show alert if routine is empty', () => {
+    document.querySelector('.routine-field').value = '   ';
+
+    sendRoutineEmail(1);
+
+    expect(window.alert).toHaveBeenCalledWith('Routine or user email missing.');
+    expect(emailService.send).not.toHaveBeenCalled();
+  });
+
+  //case 4: invalid case, user email not existing
+  it('should show alert if user email is missing', () => {
+    window.currentUserEmail = null;
+    document.querySelector('.routine-field').value = 'Water daily';
+
+    sendRoutineEmail(1);
+
+    expect(window.alert).toHaveBeenCalledWith('Routine or user email missing.');
+    expect(emailService.send).not.toHaveBeenCalled();
+  });
+
+  //case 5: edge case, removed plant
+  it('should handle removed plant container', () => {
+    document.body.innerHTML = ''; // remove plant container
+
+    sendRoutineEmail(1);
+
+    expect(window.alert).toHaveBeenCalledWith('Routine or user email missing.');
+    expect(emailService.send).not.toHaveBeenCalled();
+  });
+});
