@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Account Demo</title>
+</head>
+<body>
+  <h1>Account</h1>
+
+  <section>
+    <h2>Sign Up</h2>
+    <input id="su-email" placeholder="email" />
+    <input id="su-pass" placeholder="password" type="password" />
+    <button onclick="signup()">Sign Up</button>
+    <pre id="su-msg"></pre>
+  </section>
+
+  <section>
+    <h2>Sign In</h2>
+    <input id="si-email" placeholder="email" />
+    <input id="si-pass" placeholder="password" type="password" />
+    <button onclick="signin()">Sign In</button>
+    <pre id="si-msg"></pre>
+  </section>
+
+  <section>
+    <h2>Change Password</h2>
+    <input id="cp-email" placeholder="email" />
+    <input id="cp-old" placeholder="old password" type="password" />
+    <input id="cp-new" placeholder="new password" type="password" />
+    <button onclick="changePwd()">Change</button>
+    <pre id="cp-msg"></pre>
+  </section>
+
+  <section>
+    <h2>Delete</h2>
+    <input id="del-email" placeholder="email" />
+    <input id="del-pass" placeholder="password" type="password" />
+    <button onclick="delAcc()">Delete</button>
+    <pre id="del-msg"></pre>
+  </section>
+
+  <script src="account.js"></script>
+</body>
+</html>
