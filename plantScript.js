@@ -1,25 +1,74 @@
-
 const MAX_PLANTS = 5;
-let plants = [];
 let editingIndex = -1;
 let currentImageData = null;
-let notifiedReminders = new Set(); // Track which reminders we've already sent
+let notifiedReminders = new Set();
 
-// Load plants from memory on page load
+// Check authentication and load user-specific data
 window.addEventListener('DOMContentLoaded', () => {
+    if (!checkAuth()) return;
+    
+    loadUserInfo();
     renderPlants();
     updateAddButton();
+    
     // Check reminders every hour
     setInterval(checkReminders, 3600000);
     // Check immediately on load
     checkReminders();
 });
 
+// Check if user is authenticated
+function checkAuth() {
+    const token = localStorage.getItem('token');
+    const email = localStorage.getItem('userEmail');
+    
+    if (!token || !email) {
+        window.location.href = 'login.html';
+        return false;
+    }
+    return true;
+}
+
+// Load user information
+function loadUserInfo() {
+    const email = localStorage.getItem('userEmail');
+    const username = email.split('@')[0];
+    document.getElementById('userInfo').textContent = `Logged in as: ${username}`;
+}
+
+// Logout function
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userEmail');
+        window.location.href = 'login.html';
+    }
+}
+
 function goBack() {
-    window.history.back();
+    window.location.href = 'structure.html';
+}
+
+// Get user-specific storage key for plants
+function getPlantsStorageKey() {
+    const email = localStorage.getItem('userEmail');
+    return `plants_${email}`;
+}
+
+// Get user's plants
+function getUserPlants() {
+    const storageKey = getPlantsStorageKey();
+    return JSON.parse(localStorage.getItem(storageKey) || '[]');
+}
+
+// Save user's plants
+function saveUserPlants(plants) {
+    const storageKey = getPlantsStorageKey();
+    localStorage.setItem(storageKey, JSON.stringify(plants));
 }
 
 function openAddModal() {
+    const plants = getUserPlants();
     if (plants.length >= MAX_PLANTS) {
         alert(`You can only add up to ${MAX_PLANTS} plants.`);
         return;
@@ -33,26 +82,27 @@ function openAddModal() {
 }
 
 function openEditModal(index) {
+    const plants = getUserPlants();
     editingIndex = index;
     const plant = plants[index];
     currentImageData = plant.image;
-
+    
     document.getElementById('modalTitle').textContent = 'Edit Plant';
     document.getElementById('plantName').value = plant.name;
     document.getElementById('plantDescription').value = plant.description;
-
+    
     if (plant.reminder) {
         document.getElementById('reminderType').value = plant.reminder.type || '';
         document.getElementById('reminderFrequency').value = plant.reminder.frequency || '';
         document.getElementById('lastCareDate').value = plant.reminder.lastCareDate || '';
     }
-
+    
     if (plant.image) {
         const preview = document.getElementById('imagePreview');
         preview.innerHTML = `<img src="${plant.image}" alt="Preview">`;
         preview.style.display = 'block';
     }
-
+    
     document.getElementById('plantModal').classList.add('active');
 }
 
@@ -67,10 +117,10 @@ function closeModal() {
 function previewImage(event) {
     const file = event.target.files[0];
     const preview = document.getElementById('imagePreview');
-
+    
     if (file) {
         const reader = new FileReader();
-        reader.onload = function (e) {
+        reader.onload = function(e) {
             currentImageData = e.target.result;
             preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
             preview.style.display = 'block';
@@ -82,9 +132,10 @@ function previewImage(event) {
     }
 }
 
-document.getElementById('plantForm').addEventListener('submit', function (e) {
+document.getElementById('plantForm').addEventListener('submit', function(e) {
     e.preventDefault();
-
+    
+    const plants = getUserPlants();
     const reminderType = document.getElementById('reminderType').value;
     const reminderFrequency = document.getElementById('reminderFrequency').value;
     const lastCareDate = document.getElementById('lastCareDate').value;
@@ -107,6 +158,7 @@ document.getElementById('plantForm').addEventListener('submit', function (e) {
         plants[editingIndex] = plantData;
     }
 
+    saveUserPlants(plants);
     renderPlants();
     updateAddButton();
     closeModal();
@@ -114,7 +166,9 @@ document.getElementById('plantForm').addEventListener('submit', function (e) {
 
 function deletePlant(index) {
     if (confirm('Are you sure you want to delete this plant?')) {
+        const plants = getUserPlants();
         plants.splice(index, 1);
+        saveUserPlants(plants);
         renderPlants();
         updateAddButton();
     }
@@ -149,9 +203,10 @@ function getReminderIcon(type) {
 }
 
 function renderPlants() {
+    const plants = getUserPlants();
     const container = document.getElementById('plantsContainer');
     const emptyState = document.getElementById('emptyState');
-
+    
     if (plants.length === 0) {
         container.innerHTML = '';
         emptyState.style.display = 'block';
@@ -179,26 +234,27 @@ function renderPlants() {
         }
 
         return `
-                    <div class="plant-card">
-                        <div class="plant-image-container ${plant.image ? '' : 'empty'}">
-                            ${plant.image ? `<img src="${plant.image}" alt="${plant.name}">` : '🌱'}
-                            ${reminderBadge}
-                        </div>
-                        <div class="plant-info">
-                            <h3>${plant.name}</h3>
-                            <p>${plant.description || 'No description provided.'}</p>
-                            ${reminderInfo}
-                        </div>
-                        <div class="plant-actions">
-                            <button class="edit-btn" onclick="openEditModal(${index})">Edit</button>
-                            <button class="delete-btn" onclick="deletePlant(${index})">Delete</button>
-                        </div>
-                    </div>
-                `;
+            <div class="plant-card">
+                <div class="plant-image-container ${plant.image ? '' : 'empty'}">
+                    ${plant.image ? `<img src="${plant.image}" alt="${plant.name}">` : '🌱'}
+                    ${reminderBadge}
+                </div>
+                <div class="plant-info">
+                    <h3>${escapeHtml(plant.name)}</h3>
+                    <p>${escapeHtml(plant.description || 'No description provided.')}</p>
+                    ${reminderInfo}
+                </div>
+                <div class="plant-actions">
+                    <button class="edit-btn" onclick="openEditModal(${index})">Edit</button>
+                    <button class="delete-btn" onclick="deletePlant(${index})">Delete</button>
+                </div>
+            </div>
+        `;
     }).join('');
 }
 
 function updateAddButton() {
+    const plants = getUserPlants();
     const addBtn = document.getElementById('addPlantBtn');
     if (plants.length >= MAX_PLANTS) {
         addBtn.disabled = true;
@@ -210,11 +266,14 @@ function updateAddButton() {
 }
 
 function checkReminders() {
+    const plants = getUserPlants();
+    const email = localStorage.getItem('userEmail');
+    
     plants.forEach((plant, index) => {
         const status = getReminderStatus(plant);
         if (status && (status.isDue || status.isUpcoming)) {
-            const reminderKey = `${index}-${plant.reminder.lastCareDate}`;
-
+            const reminderKey = `${email}-${index}-${plant.reminder.lastCareDate}`;
+            
             // Only send email if we haven't already notified about this reminder
             if (!notifiedReminders.has(reminderKey)) {
                 sendReminderEmail(plant, status);
@@ -226,8 +285,9 @@ function checkReminders() {
 }
 
 function sendReminderEmail(plant, status) {
+    const email = localStorage.getItem('userEmail');
     const reminderType = plant.reminder.type.charAt(0).toUpperCase() + plant.reminder.type.slice(1);
-
+    
     let statusText;
     if (status.isDue) {
         statusText = 'is due now';
@@ -236,11 +296,16 @@ function sendReminderEmail(plant, status) {
     }
 
     const subject = 'Reminder is approaching';
-    const body = `Hi there,\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} - ${statusText}!\n\nPlease take care of your plant.\n\nBest regards,\nPlant Diary`;
-
-    // the current email is fixed at test@test.com
-    const mailtoLink = `mailto:test@test.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
+    const body = `Hi ${email.split('@')[0]},\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} - ${statusText}!\n\nPlease take care of your plant.\n\nBest regards,\nPlant Diary`;
+    
+    const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
     // Opens the user's default email client with pre-filled content
     window.open(mailtoLink);
-} 
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}

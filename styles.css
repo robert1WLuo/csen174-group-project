@@ -28,6 +28,15 @@ nav button:hover {
   background-color: #e6f2ff;
 }
 
+.logout-btn {
+  background-color: #dc3545 !important;
+  color: white !important;
+}
+
+.logout-btn:hover {
+  background-color: #c82333 !important;
+}
+
 main {
   padding: 1rem;
   max-width: 1200px;

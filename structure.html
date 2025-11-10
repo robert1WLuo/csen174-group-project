@@ -14,6 +14,7 @@
         <nav>
             <button onclick="showProfile()">Profile</button>
             <button onclick="showChat()">Chat Room</button>
+            <button onclick="logout()" class="logout-btn">Logout</button>
         </nav>
     </header>
 
@@ -23,8 +24,8 @@
             <h2>Your Profile</h2>
             <div class="profile-card">
                 <img src="images/github.png" alt="Profile Picture" style="width:42px;height:42px;">
-                <h3>Robert</h3>
-                <p>some description</p>
+                <h3 id="userName">Loading...</h3>
+                <p id="userEmail">Loading...</p>
             </div>
 
             <!-- Plant Management Section -->
@@ -42,14 +43,7 @@
             <h2>Chat Room</h2>
             <div class="chat-container">
                 <div class="chat-messages" id="chatMessages">
-                     
-
-                    <div class="message message-other">
-                        <div class="message-header">
-                            <span class="username">sample</span> 
-                        </div>
-                        <div class="message-content">hello :)</div>
-                    </div>
+                    <!-- Messages will be loaded dynamically -->
                 </div>
 
                 <div class="chat-input-container">

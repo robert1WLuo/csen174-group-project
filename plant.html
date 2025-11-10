@@ -1,22 +1,26 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Plants - Plant Diary</title>
-    
-    <link rel="stylesheet" href="plantStyle.css" />
+    <link rel="stylesheet" href="plantStyle.css">
 </head>
-<body> 
+<body>
     <header>
         <h1>🌱 My Plants</h1>
-        <button class="back-button" onclick="goBack()">← Back to Profile</button>
+        <div class="header-buttons">
+            <button class="back-button" onclick="goBack()">← Back to Profile</button>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
     </header>
 
     <main>
         <div class="header-section">
-            <h2>Plant Collection</h2>
+            <div>
+                <h2>Plant Collection</h2>
+                <p class="user-info" id="userInfo">Loading...</p>
+            </div>
             <button class="add-plant-btn" onclick="openAddModal()" id="addPlantBtn">+ Add New Plant</button>
         </div>
 
@@ -90,7 +94,7 @@
             </form>
         </div>
     </div>
-  
+
     <script src="plantScript.js"></script>
 </body>
 </html>
