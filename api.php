@@ -165,5 +165,26 @@ if ($method === 'POST' && $path === '/api/delete-account') {
   ok(['email' => $email]);
 }
 
+// ---- send reminder email (server-side) ----
+// POST /api/send-reminder  { to, subject, body }
+if ($method === 'POST' && $path === '/api/send-reminder') {
+  $b = jbody();
+  $to = trim($b['to'] ?? '');
+  $subject = $b['subject'] ?? 'Plant Reminder';
+  $body = $b['body'] ?? '';
+
+  if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) err('invalid to');
+  if (!$body) err('empty body');
+
+  // method A：PHP  mail()(need SMTP
+  $headers = [];
+  $headers[] = 'From: Plant Diary <no-reply@localhost>';
+  $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+  $ok = @mail($to, $subject, $body, implode("\r\n", $headers));
+
+  if (!$ok) err('mail() failed on this machine', 500);
+  ok(['sent' => true]);
+}
+
 // 404 fallback
 err('not found', 404);

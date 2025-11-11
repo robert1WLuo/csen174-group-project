@@ -1,3 +1,4 @@
+const API_BASE = "http://127.0.0.1:8000";
 const MAX_PLANTS = 5;
 let editingIndex = -1;
 let currentImageData = null;
@@ -265,43 +266,100 @@ function updateAddButton() {
     }
 }
 
+// function checkReminders() {
+//     const plants = getUserPlants();
+//     const email = localStorage.getItem('userEmail');
+    
+//     plants.forEach((plant, index) => {
+//         const status = getReminderStatus(plant);
+//         if (status && (status.isDue || status.isUpcoming)) {
+//             const reminderKey = `${email}-${index}-${plant.reminder.lastCareDate}`;
+            
+//             // Only send email if we haven't already notified about this reminder
+//             if (!notifiedReminders.has(reminderKey)) {
+//                 sendReminderEmail(plant, status);
+//                 notifiedReminders.add(reminderKey);
+//                 console.log(`Reminder email triggered for: ${plant.name}`);
+//             }
+//         }
+//     });
+// }
+
+// function sendReminderEmail(plant, status) {
+//     const email = localStorage.getItem('userEmail');
+//     const reminderType = plant.reminder.type.charAt(0).toUpperCase() + plant.reminder.type.slice(1);
+    
+//     let statusText;
+//     if (status.isDue) {
+//         statusText = 'is due now';
+//     } else if (status.isUpcoming) {
+//         statusText = `is approaching (in ${status.daysUntilNext} day${status.daysUntilNext > 1 ? 's' : ''})`;
+//     }
+
+//     const subject = 'Reminder is approaching';
+//     const body = `Hi ${email.split('@')[0]},\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} - ${statusText}!\n\nPlease take care of your plant.\n\nBest regards,\nPlant Diary`;
+    
+//     const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+//     // Opens the user's default email client with pre-filled content
+//     window.open(mailtoLink);
+// }
+
+// ---------- Reminders: trigger on due-day or 1-day-early ----------
 function checkReminders() {
     const plants = getUserPlants();
     const email = localStorage.getItem('userEmail');
+    if (!email) return;
     
     plants.forEach((plant, index) => {
         const status = getReminderStatus(plant);
-        if (status && (status.isDue || status.isUpcoming)) {
-            const reminderKey = `${email}-${index}-${plant.reminder.lastCareDate}`;
-            
-            // Only send email if we haven't already notified about this reminder
+        if (!status) return;
+
+        // the day or the day before
+        const isAdvance1Day = status.daysUntilNext === 1;
+        if (status.isDue || isAdvance1Day) {
+            // key with daysUntilNext to differentiate the day and the day before
+            const reminderKey = `${email}-${index}-${plant.reminder.lastCareDate}-${status.daysUntilNext}`;
             if (!notifiedReminders.has(reminderKey)) {
-                sendReminderEmail(plant, status);
+                sendReminderEmail(plant, status, isAdvance1Day);
                 notifiedReminders.add(reminderKey);
-                console.log(`Reminder email triggered for: ${plant.name}`);
+                console.log(`Reminder email triggered for: ${plant.name} (daysUntilNext=${status.daysUntilNext})`);
             }
         }
     });
 }
 
-function sendReminderEmail(plant, status) {
+// Modified: switched from mailto to backend API; falls back to mailto on failure to keep demo functional
+async function sendReminderEmail(plant, status, isAdvance1Day) {
     const email = localStorage.getItem('userEmail');
     const reminderType = plant.reminder.type.charAt(0).toUpperCase() + plant.reminder.type.slice(1);
-    
-    let statusText;
-    if (status.isDue) {
-        statusText = 'is due now';
-    } else if (status.isUpcoming) {
-        statusText = `is approaching (in ${status.daysUntilNext} day${status.daysUntilNext > 1 ? 's' : ''})`;
-    }
 
-    const subject = 'Reminder is approaching';
-    const body = `Hi ${email.split('@')[0]},\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} - ${statusText}!\n\nPlease take care of your plant.\n\nBest regards,\nPlant Diary`;
-    
-    const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    // Opens the user's default email client with pre-filled content
-    window.open(mailtoLink);
+    const whenText = status.isDue
+        ? 'is due now'
+        : (isAdvance1Day ? 'is due tomorrow' : `in ${status.daysUntilNext} day${status.daysUntilNext > 1 ? 's' : ''}`);
+
+    const subject = `Plant reminder: ${plant.name} ${whenText}`;
+    const body = `Hi ${email.split('@')[0]},\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} — ${whenText}.\n\n• Last care date: ${plant.reminder.lastCareDate || 'N/A'}\n• Frequency: every ${plant.reminder.frequency || '?'} day(s)\n\nPlease take care of your plant.\n\n— Plant Diary`;
+
+    try {
+        const r = await fetch(`${API_BASE}/api/send-reminder`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ to: email, subject, body })
+        });
+        const j = await r.json();
+        if (!j.ok) {
+            console.error('Server send failed:', j.error);
+            // fallback：mailto
+            const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.open(mailtoLink);
+        }
+    } catch (err) {
+        console.error('Server send error:', err);
+        // fallback：mailto
+        const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(mailtoLink);
+    }
 }
 
 function escapeHtml(text) {
