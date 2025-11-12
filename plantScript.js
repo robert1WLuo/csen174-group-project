@@ -1,5 +1,6 @@
-const API_BASE = "http://127.0.0.1:8000";
+const API = "http://127.0.0.1:8000";
 const MAX_PLANTS = 5;
+let plants = [];
 let editingIndex = -1;
 let currentImageData = null;
 let notifiedReminders = new Set();
@@ -9,8 +10,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!checkAuth()) return;
     
     loadUserInfo();
-    renderPlants();
-    updateAddButton();
+    loadPlants();
     
     // Check reminders every hour
     setInterval(checkReminders, 3600000);
@@ -50,26 +50,53 @@ function goBack() {
     window.location.href = 'structure.html';
 }
 
-// Get user-specific storage key for plants
-function getPlantsStorageKey() {
-    const email = localStorage.getItem('userEmail');
-    return `plants_${email}`;
+// API Helper functions
+async function apiRequest(endpoint, method = 'GET', body = null) {
+    const token = localStorage.getItem('token');
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    };
+    
+    if (body) {
+        options.body = JSON.stringify(body);
+    }
+    
+    try {
+        const response = await fetch(API + endpoint, options);
+        const data = await response.json();
+        
+        if (!data.ok) {
+            throw new Error(data.error || 'Request failed');
+        }
+        
+        return data.data;
+    } catch (error) {
+        console.error('API Error:', error);
+        if (error.message.includes('unauthorized')) {
+            alert('Session expired. Please login again.');
+            window.location.href = 'login.html';
+        }
+        throw error;
+    }
 }
 
-// Get user's plants
-function getUserPlants() {
-    const storageKey = getPlantsStorageKey();
-    return JSON.parse(localStorage.getItem(storageKey) || '[]');
-}
-
-// Save user's plants
-function saveUserPlants(plants) {
-    const storageKey = getPlantsStorageKey();
-    localStorage.setItem(storageKey, JSON.stringify(plants));
+// Load plants from server
+async function loadPlants() {
+    try {
+        plants = await apiRequest('/api/plants');
+        renderPlants();
+        updateAddButton();
+    } catch (error) {
+        console.error('Failed to load plants:', error);
+        alert('Failed to load plants. Please try again.');
+    }
 }
 
 function openAddModal() {
-    const plants = getUserPlants();
     if (plants.length >= MAX_PLANTS) {
         alert(`You can only add up to ${MAX_PLANTS} plants.`);
         return;
@@ -83,7 +110,6 @@ function openAddModal() {
 }
 
 function openEditModal(index) {
-    const plants = getUserPlants();
     editingIndex = index;
     const plant = plants[index];
     currentImageData = plant.image;
@@ -133,10 +159,9 @@ function previewImage(event) {
     }
 }
 
-document.getElementById('plantForm').addEventListener('submit', function(e) {
+document.getElementById('plantForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    const plants = getUserPlants();
     const reminderType = document.getElementById('reminderType').value;
     const reminderFrequency = document.getElementById('reminderFrequency').value;
     const lastCareDate = document.getElementById('lastCareDate').value;
@@ -153,25 +178,32 @@ document.getElementById('plantForm').addEventListener('submit', function(e) {
         } : null
     };
 
-    if (editingIndex === -1) {
-        plants.push(plantData);
-    } else {
-        plants[editingIndex] = plantData;
+    try {
+        if (editingIndex === -1) {
+            // Add new plant
+            await apiRequest('/api/plants', 'POST', { plant: plantData });
+        } else {
+            // Update existing plant
+            await apiRequest('/api/plants', 'PUT', { index: editingIndex, plant: plantData });
+        }
+        
+        await loadPlants();
+        closeModal();
+    } catch (error) {
+        console.error('Failed to save plant:', error);
+        alert('Failed to save plant. Please try again.');
     }
-
-    saveUserPlants(plants);
-    renderPlants();
-    updateAddButton();
-    closeModal();
 });
 
-function deletePlant(index) {
+async function deletePlant(index) {
     if (confirm('Are you sure you want to delete this plant?')) {
-        const plants = getUserPlants();
-        plants.splice(index, 1);
-        saveUserPlants(plants);
-        renderPlants();
-        updateAddButton();
+        try {
+            await apiRequest('/api/plants', 'DELETE', { index });
+            await loadPlants();
+        } catch (error) {
+            console.error('Failed to delete plant:', error);
+            alert('Failed to delete plant. Please try again.');
+        }
     }
 }
 
@@ -204,7 +236,6 @@ function getReminderIcon(type) {
 }
 
 function renderPlants() {
-    const plants = getUserPlants();
     const container = document.getElementById('plantsContainer');
     const emptyState = document.getElementById('emptyState');
     
@@ -237,7 +268,7 @@ function renderPlants() {
         return `
             <div class="plant-card">
                 <div class="plant-image-container ${plant.image ? '' : 'empty'}">
-                    ${plant.image ? `<img src="${plant.image}" alt="${plant.name}">` : '🌱'}
+                    ${plant.image ? `<img src="${plant.image}" alt="${escapeHtml(plant.name)}">` : '🌱'}
                     ${reminderBadge}
                 </div>
                 <div class="plant-info">
@@ -255,7 +286,6 @@ function renderPlants() {
 }
 
 function updateAddButton() {
-    const plants = getUserPlants();
     const addBtn = document.getElementById('addPlantBtn');
     if (plants.length >= MAX_PLANTS) {
         addBtn.disabled = true;
@@ -266,100 +296,42 @@ function updateAddButton() {
     }
 }
 
-// function checkReminders() {
-//     const plants = getUserPlants();
-//     const email = localStorage.getItem('userEmail');
-    
-//     plants.forEach((plant, index) => {
-//         const status = getReminderStatus(plant);
-//         if (status && (status.isDue || status.isUpcoming)) {
-//             const reminderKey = `${email}-${index}-${plant.reminder.lastCareDate}`;
-            
-//             // Only send email if we haven't already notified about this reminder
-//             if (!notifiedReminders.has(reminderKey)) {
-//                 sendReminderEmail(plant, status);
-//                 notifiedReminders.add(reminderKey);
-//                 console.log(`Reminder email triggered for: ${plant.name}`);
-//             }
-//         }
-//     });
-// }
-
-// function sendReminderEmail(plant, status) {
-//     const email = localStorage.getItem('userEmail');
-//     const reminderType = plant.reminder.type.charAt(0).toUpperCase() + plant.reminder.type.slice(1);
-    
-//     let statusText;
-//     if (status.isDue) {
-//         statusText = 'is due now';
-//     } else if (status.isUpcoming) {
-//         statusText = `is approaching (in ${status.daysUntilNext} day${status.daysUntilNext > 1 ? 's' : ''})`;
-//     }
-
-//     const subject = 'Reminder is approaching';
-//     const body = `Hi ${email.split('@')[0]},\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} - ${statusText}!\n\nPlease take care of your plant.\n\nBest regards,\nPlant Diary`;
-    
-//     const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-//     // Opens the user's default email client with pre-filled content
-//     window.open(mailtoLink);
-// }
-
-// ---------- Reminders: trigger on due-day or 1-day-early ----------
 function checkReminders() {
-    const plants = getUserPlants();
     const email = localStorage.getItem('userEmail');
-    if (!email) return;
     
     plants.forEach((plant, index) => {
         const status = getReminderStatus(plant);
-        if (!status) return;
-
-        // the day or the day before
-        const isAdvance1Day = status.daysUntilNext === 1;
-        if (status.isDue || isAdvance1Day) {
-            // key with daysUntilNext to differentiate the day and the day before
-            const reminderKey = `${email}-${index}-${plant.reminder.lastCareDate}-${status.daysUntilNext}`;
+        if (status && (status.isDue || status.isUpcoming)) {
+            const reminderKey = `${email}-${plant.id || index}-${plant.reminder.lastCareDate}`;
+            
+            // Only send email if we haven't already notified about this reminder
             if (!notifiedReminders.has(reminderKey)) {
-                sendReminderEmail(plant, status, isAdvance1Day);
+                sendReminderEmail(plant, status);
                 notifiedReminders.add(reminderKey);
-                console.log(`Reminder email triggered for: ${plant.name} (daysUntilNext=${status.daysUntilNext})`);
+                console.log(`Reminder email triggered for: ${plant.name}`);
             }
         }
     });
 }
 
-// Modified: switched from mailto to backend API; falls back to mailto on failure to keep demo functional
-async function sendReminderEmail(plant, status, isAdvance1Day) {
+function sendReminderEmail(plant, status) {
     const email = localStorage.getItem('userEmail');
     const reminderType = plant.reminder.type.charAt(0).toUpperCase() + plant.reminder.type.slice(1);
-
-    const whenText = status.isDue
-        ? 'is due now'
-        : (isAdvance1Day ? 'is due tomorrow' : `in ${status.daysUntilNext} day${status.daysUntilNext > 1 ? 's' : ''}`);
-
-    const subject = `Plant reminder: ${plant.name} ${whenText}`;
-    const body = `Hi ${email.split('@')[0]},\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} — ${whenText}.\n\n• Last care date: ${plant.reminder.lastCareDate || 'N/A'}\n• Frequency: every ${plant.reminder.frequency || '?'} day(s)\n\nPlease take care of your plant.\n\n— Plant Diary`;
-
-    try {
-        const r = await fetch(`${API_BASE}/api/send-reminder`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ to: email, subject, body })
-        });
-        const j = await r.json();
-        if (!j.ok) {
-            console.error('Server send failed:', j.error);
-            // fallback：mailto
-            const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            window.open(mailtoLink);
-        }
-    } catch (err) {
-        console.error('Server send error:', err);
-        // fallback：mailto
-        const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(mailtoLink);
+    
+    let statusText;
+    if (status.isDue) {
+        statusText = 'is due now';
+    } else if (status.isUpcoming) {
+        statusText = `is approaching (in ${status.daysUntilNext} day${status.daysUntilNext > 1 ? 's' : ''})`;
     }
+
+    const subject = 'Reminder is approaching';
+    const body = `Hi ${email.split('@')[0]},\n\nThis is a reminder that your plant "${plant.name}" needs ${reminderType.toLowerCase()} - ${statusText}!\n\nPlease take care of your plant.\n\nBest regards,\nPlant Diary`;
+    
+    const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    // Opens the user's default email client with pre-filled content
+    window.open(mailtoLink);
 }
 
 function escapeHtml(text) {

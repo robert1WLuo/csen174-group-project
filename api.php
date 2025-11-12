@@ -1,6 +1,6 @@
 <?php
 /***********************
- * Plant Diary - PHP API (router + auth)
+ * Plant Diary - PHP API (router + auth + plants)
  * Single file router for PHP built-in server.
  * Start server:  php -S 127.0.0.1:8000 api.php
  ***********************/
@@ -32,7 +32,7 @@ if ($origin && in_array($origin, $allowed, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header('Vary: Origin');
 }
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json; charset=utf-8');
 
@@ -44,9 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Simple file DB 
 $DB_DIR  = __DIR__ . '/data';
-$DB_FILE = $DB_DIR . '/accounts.json';
+$ACCOUNTS_FILE = $DB_DIR . '/accounts.json';
+$PLANTS_FILE = $DB_DIR . '/plants.json';
+
 if (!is_dir($DB_DIR)) { mkdir($DB_DIR, 0777, true); }
-if (!file_exists($DB_FILE)) { file_put_contents($DB_FILE, "{}"); }
+if (!file_exists($ACCOUNTS_FILE)) { file_put_contents($ACCOUNTS_FILE, "{}"); }
+if (!file_exists($PLANTS_FILE)) { file_put_contents($PLANTS_FILE, "{}"); }
 
 // helpers
 function read_json($file) {
@@ -88,6 +91,22 @@ function valid_email($e) {
   return filter_var($e, FILTER_VALIDATE_EMAIL);
 }
 
+// Extract email from Authorization header or body
+function get_auth_email() {
+  $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+  if (preg_match('/Bearer\s+(\S+)/', $auth, $m)) {
+    $token = $m[1];
+    $decoded = base64_decode($token, true);
+    if ($decoded) {
+      $parts = explode('|', $decoded);
+      if (count($parts) === 2) {
+        return $parts[0];
+      }
+    }
+  }
+  return null;
+}
+
 // routing
 $method = $_SERVER['REQUEST_METHOD'];
 $path   = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -97,6 +116,8 @@ if ($method === 'GET' && $path === '/api/health') {
   ok(['status' => 'up']);
 }
 
+// ============ ACCOUNT ENDPOINTS ============
+
 // signup
 if ($method === 'POST' && $path === '/api/signup') {
   $b = jbody();
@@ -105,14 +126,14 @@ if ($method === 'POST' && $path === '/api/signup') {
   if (!$email || !$password) err('email/password required');
   if (!valid_email($email)) err('invalid email');
 
-  $db = read_json($GLOBALS['DB_FILE']);
+  $db = read_json($GLOBALS['ACCOUNTS_FILE']);
   if (isset($db[$email])) err('account exists', 409);
 
   $db[$email] = [
     'hash' => password_hash($password, PASSWORD_DEFAULT),
     'createdAt' => time()
   ];
-  if (!write_json($GLOBALS['DB_FILE'], $db)) err('write fail', 500);
+  if (!write_json($GLOBALS['ACCOUNTS_FILE'], $db)) err('write fail', 500);
   ok(['email' => $email]);
 }
 
@@ -123,7 +144,7 @@ if ($method === 'POST' && $path === '/api/signin') {
   $password = $b['password'] ?? '';
   if (!$email || !$password) err('email/password required');
 
-  $db = read_json($GLOBALS['DB_FILE']);
+  $db = read_json($GLOBALS['ACCOUNTS_FILE']);
   if (!isset($db[$email])) err('account not found', 404);
   if (!password_verify($password, $db[$email]['hash'])) err('incorrect password', 401);
 
@@ -139,13 +160,13 @@ if ($method === 'POST' && $path === '/api/change-password') {
   $new = $b['newPassword'] ?? '';
   if (!$email || !$old || !$new) err('email/oldPassword/newPassword required');
 
-  $db = read_json($GLOBALS['DB_FILE']);
+  $db = read_json($GLOBALS['ACCOUNTS_FILE']);
   if (!isset($db[$email])) err('account not found', 404);
   if (!password_verify($old, $db[$email]['hash'])) err('incorrect password', 401);
 
   $db[$email]['hash'] = password_hash($new, PASSWORD_DEFAULT);
   $db[$email]['changedAt'] = time();
-  if (!write_json($GLOBALS['DB_FILE'], $db)) err('write fail', 500);
+  if (!write_json($GLOBALS['ACCOUNTS_FILE'], $db)) err('write fail', 500);
   ok(['email' => $email]);
 }
 
@@ -156,34 +177,102 @@ if ($method === 'POST' && $path === '/api/delete-account') {
   $password = $b['password'] ?? '';
   if (!$email || !$password) err('email/password required');
 
-  $db = read_json($GLOBALS['DB_FILE']);
+  $db = read_json($GLOBALS['ACCOUNTS_FILE']);
   if (!isset($db[$email])) err('account not found', 404);
   if (!password_verify($password, $db[$email]['hash'])) err('incorrect password', 401);
 
   unset($db[$email]);
-  if (!write_json($GLOBALS['DB_FILE'], $db)) err('write fail', 500);
+  if (!write_json($GLOBALS['ACCOUNTS_FILE'], $db)) err('write fail', 500);
+  
+  // Also delete user's plants
+  $plants = read_json($GLOBALS['PLANTS_FILE']);
+  if (isset($plants[$email])) {
+    unset($plants[$email]);
+    write_json($GLOBALS['PLANTS_FILE'], $plants);
+  }
+  
   ok(['email' => $email]);
 }
 
-// ---- send reminder email (server-side) ----
-// POST /api/send-reminder  { to, subject, body }
-if ($method === 'POST' && $path === '/api/send-reminder') {
+// ============ PLANT ENDPOINTS ============
+
+// Get user's plants
+if ($method === 'GET' && $path === '/api/plants') {
+  $email = get_auth_email();
+  if (!$email) err('unauthorized', 401);
+
+  $plants = read_json($GLOBALS['PLANTS_FILE']);
+  $userPlants = $plants[$email] ?? [];
+  ok($userPlants);
+}
+
+// Add a plant
+if ($method === 'POST' && $path === '/api/plants') {
+  $email = get_auth_email();
+  if (!$email) err('unauthorized', 401);
+
   $b = jbody();
-  $to = trim($b['to'] ?? '');
-  $subject = $b['subject'] ?? 'Plant Reminder';
-  $body = $b['body'] ?? '';
+  $plant = $b['plant'] ?? null;
+  if (!$plant) err('plant data required');
 
-  if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) err('invalid to');
-  if (!$body) err('empty body');
+  $plants = read_json($GLOBALS['PLANTS_FILE']);
+  if (!isset($plants[$email])) {
+    $plants[$email] = [];
+  }
+  
+  // Add plant with unique ID
+  $plant['id'] = uniqid('plant_', true);
+  $plant['createdAt'] = time();
+  $plants[$email][] = $plant;
+  
+  if (!write_json($GLOBALS['PLANTS_FILE'], $plants)) err('write fail', 500);
+  ok($plant);
+}
 
-  // method A：PHP  mail()(need SMTP
-  $headers = [];
-  $headers[] = 'From: Plant Diary <no-reply@localhost>';
-  $headers[] = 'Content-Type: text/plain; charset=UTF-8';
-  $ok = @mail($to, $subject, $body, implode("\r\n", $headers));
+// Update a plant
+if ($method === 'PUT' && $path === '/api/plants') {
+  $email = get_auth_email();
+  if (!$email) err('unauthorized', 401);
 
-  if (!$ok) err('mail() failed on this machine', 500);
-  ok(['sent' => true]);
+  $b = jbody();
+  $index = $b['index'] ?? null;
+  $plant = $b['plant'] ?? null;
+  if ($index === null || !$plant) err('index and plant data required');
+
+  $plants = read_json($GLOBALS['PLANTS_FILE']);
+  if (!isset($plants[$email]) || !isset($plants[$email][$index])) {
+    err('plant not found', 404);
+  }
+  
+  // Preserve creation data
+  $plant['id'] = $plants[$email][$index]['id'] ?? uniqid('plant_', true);
+  $plant['createdAt'] = $plants[$email][$index]['createdAt'] ?? time();
+  $plant['updatedAt'] = time();
+  
+  $plants[$email][$index] = $plant;
+  
+  if (!write_json($GLOBALS['PLANTS_FILE'], $plants)) err('write fail', 500);
+  ok($plant);
+}
+
+// Delete a plant
+if ($method === 'DELETE' && $path === '/api/plants') {
+  $email = get_auth_email();
+  if (!$email) err('unauthorized', 401);
+
+  $b = jbody();
+  $index = $b['index'] ?? null;
+  if ($index === null) err('index required');
+
+  $plants = read_json($GLOBALS['PLANTS_FILE']);
+  if (!isset($plants[$email]) || !isset($plants[$email][$index])) {
+    err('plant not found', 404);
+  }
+  
+  array_splice($plants[$email], $index, 1);
+  
+  if (!write_json($GLOBALS['PLANTS_FILE'], $plants)) err('write fail', 500);
+  ok(['deleted' => true]);
 }
 
 // 404 fallback
