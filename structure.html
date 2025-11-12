@@ -23,9 +23,10 @@
         <section id="profile" class="active">
             <h2>Your Profile</h2>
             <div class="profile-card">
-                <img src="images/github.png" alt="Profile Picture" style="width:42px;height:42px;">
+                <img id="profileImage" src="images/github.png" alt="Profile Picture" style="width:100px;height:100px;border-radius:50%;object-fit:cover;">
                 <h3 id="userName">Loading...</h3>
                 <p id="userEmail">Loading...</p>
+                <button class="edit-profile-btn" onclick="openEditProfileModal()">Edit Profile</button>
             </div>
 
             <!-- Plant Management Section -->
@@ -53,6 +54,37 @@
             </div>
         </section>
     </main>
+
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Profile</h2>
+            <form id="editProfileForm">
+                <div class="form-group">
+                    <label for="profileImageUpload">Profile Picture</label>
+                    <div class="profile-image-preview">
+                        <img id="profileImagePreview" src="images/github.png" alt="Preview" style="width:120px;height:120px;border-radius:50%;object-fit:cover;">
+                    </div>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="profileImageUpload" accept="image/*" onchange="previewProfileImage(event)">
+                        <label class="file-input-label" for="profileImageUpload">
+                            📷 Change Picture
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="profileName">Display Name</label>
+                    <input type="text" id="profileName" placeholder="Enter your name" required>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="submit" class="save-btn">Save Changes</button>
+                    <button type="button" class="cancel-btn" onclick="closeEditProfileModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <footer>
         <p>&copy; 2025 Plant Diary</p>

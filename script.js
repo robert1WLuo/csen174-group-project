@@ -1,4 +1,5 @@
 const API = "http://127.0.0.1:8000";
+let currentProfileImageData = null;
 
 // Check authentication on page load
 window.addEventListener('DOMContentLoaded', function() {
@@ -30,17 +31,130 @@ function checkAuth() {
   return true;
 }
 
+// API Helper function
+async function apiRequest(endpoint, method = 'GET', body = null) {
+  const token = localStorage.getItem('token');
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  };
+  
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+  
+  try {
+    const response = await fetch(API + endpoint, options);
+    const data = await response.json();
+    
+    if (!data.ok) {
+      throw new Error(data.error || 'Request failed');
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error('API Error:', error);
+    if (error.message.includes('unauthorized')) {
+      alert('Session expired. Please login again.');
+      window.location.href = 'login.html';
+    }
+    throw error;
+  }
+}
+
 // Load user profile information
-function loadUserProfile() {
+async function loadUserProfile() {
   const email = localStorage.getItem('userEmail');
   if (!email) return;
   
-  // Extract username from email (part before @)
-  const username = email.split('@')[0];
-  
-  document.getElementById('userName').textContent = username;
-  document.getElementById('userEmail').textContent = email;
+  try {
+    // Get profile from server
+    const profile = await apiRequest('/api/profile');
+    
+    // Display profile
+    const displayName = profile.name || email.split('@')[0];
+    const profileImage = profile.image || 'images/github.png';
+    
+    document.getElementById('userName').textContent = displayName;
+    document.getElementById('userEmail').textContent = email;
+    document.getElementById('profileImage').src = profileImage;
+  } catch (error) {
+    // If profile doesn't exist yet, use defaults
+    const username = email.split('@')[0];
+    document.getElementById('userName').textContent = username;
+    document.getElementById('userEmail').textContent = email;
+  }
 }
+
+// Open edit profile modal
+function openEditProfileModal() {
+  const email = localStorage.getItem('userEmail');
+  const currentName = document.getElementById('userName').textContent;
+  const currentImage = document.getElementById('profileImage').src;
+  
+  document.getElementById('profileName').value = currentName;
+  document.getElementById('profileImagePreview').src = currentImage;
+  currentProfileImageData = currentImage.startsWith('data:') ? currentImage : null;
+  
+  document.getElementById('editProfileModal').classList.add('active');
+}
+
+// Close edit profile modal
+function closeEditProfileModal() {
+  document.getElementById('editProfileModal').classList.remove('active');
+  currentProfileImageData = null;
+}
+
+// Preview profile image
+function previewProfileImage(event) {
+  const file = event.target.files[0];
+  const preview = document.getElementById('profileImagePreview');
+  
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      currentProfileImageData = e.target.result;
+      preview.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// Handle profile edit form submission
+document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const name = document.getElementById('profileName').value.trim();
+  
+  if (!name) {
+    alert('Please enter a display name');
+    return;
+  }
+  
+  try {
+    const profileData = {
+      name: name,
+      image: currentProfileImageData || document.getElementById('profileImage').src
+    };
+    
+    await apiRequest('/api/profile', 'POST', profileData);
+    
+    // Update display
+    document.getElementById('userName').textContent = name;
+    if (currentProfileImageData) {
+      document.getElementById('profileImage').src = currentProfileImageData;
+    }
+    
+    closeEditProfileModal();
+    alert('Profile updated successfully!');
+  } catch (error) {
+    console.error('Failed to update profile:', error);
+    alert('Failed to update profile. Please try again.');
+  }
+});
 
 // Logout function
 function logout() {
@@ -78,9 +192,34 @@ function loadChatMessages() {
   const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
   
   chatMessages.innerHTML = '';
-   
-  messages.forEach(msg => renderMessage(msg));
   
+  if (messages.length === 0) {
+    // Add sample messages if no messages exist
+    const sampleMessages = [
+      {
+        username: 'andrewjhinh@gmail.com',
+        timestamp: 'May 24, 09:50 PM',
+        content: 'Testing',
+        isOwn: false
+      },
+      {
+        username: 'ahinh',
+        timestamp: 'May 25, 05:59 PM',
+        content: 'Yes?',
+        isOwn: false
+      },
+      {
+        username: 'andrewjhinh',
+        timestamp: 'May 27, 05:51 PM',
+        content: 'Hello!',
+        isOwn: false
+      }
+    ];
+    
+    sampleMessages.forEach(msg => renderMessage(msg));
+  } else {
+    messages.forEach(msg => renderMessage(msg));
+  }
   
   // Auto scroll to bottom
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -112,7 +251,7 @@ function sendMessage() {
   }
 
   const email = localStorage.getItem('userEmail');
-  const username = email.split('@')[0];
+  const username = document.getElementById('userName').textContent;
   const now = new Date();
   const timestamp = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
                     ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });

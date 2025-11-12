@@ -58,10 +58,10 @@ footer {
   margin-top: 2rem;
 }
 
-/* Profile Section */
+/*profile*/
 .profile-card {
   background-color: white;
-  padding: 1.5rem;
+  padding: 2rem;
   border-radius: 10px;
   text-align: center;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -75,7 +75,23 @@ footer {
 
 .profile-card p {
   color: #666;
-  margin: 0;
+  margin: 0 0 1rem 0;
+}
+
+.edit-profile-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.5rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background-color 0.3s;
+}
+
+.edit-profile-btn:hover {
+  background-color: #0056b3;
 }
 
 /* Plant Management Section */
@@ -110,6 +126,130 @@ footer {
 
 .manage-plants-btn:hover {
   background-color: #218838;
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin-bottom: 1.5rem;
+  color: #333;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #333;
+  font-weight: bold;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-family: Arial, sans-serif;
+}
+
+.profile-image-preview {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.file-input-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.file-input-label {
+  display: block;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border: 2px dashed #ddd;
+  border-radius: 5px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.file-input-label:hover {
+  border-color: #0077cc;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.modal-buttons button {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.save-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #218838;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
 }
 
 /* Chat Room Section */

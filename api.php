@@ -1,6 +1,6 @@
 <?php
 /***********************
- * Plant Diary - PHP API (router + auth + plants)
+ * Plant Diary - PHP API (router + auth + plants + profiles)
  * Single file router for PHP built-in server.
  * Start server:  php -S 127.0.0.1:8000 api.php
  ***********************/
@@ -9,18 +9,16 @@
 if (php_sapi_name() === 'cli-server') {
   $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
   $file = __DIR__ . $path;
-  // If a real static file exists (e.g., /login.html /styles.css /login.js), let server serve it.
   if ($path !== '/' && file_exists($file) && !is_dir($file)) {
-    return false; // critical: hand off to the static file
+    return false;
   }
 }
 
-//Debug: show errors in terminal 
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('log_errors', '0');
 
-// CORS (allow local dev origins)
+// CORS
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = [
   'http://127.0.0.1:8000',
@@ -42,16 +40,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   exit;
 }
 
-// Simple file DB 
+// Database files
 $DB_DIR  = __DIR__ . '/data';
 $ACCOUNTS_FILE = $DB_DIR . '/accounts.json';
 $PLANTS_FILE = $DB_DIR . '/plants.json';
+$PROFILES_FILE = $DB_DIR . '/profiles.json';
 
 if (!is_dir($DB_DIR)) { mkdir($DB_DIR, 0777, true); }
 if (!file_exists($ACCOUNTS_FILE)) { file_put_contents($ACCOUNTS_FILE, "{}"); }
 if (!file_exists($PLANTS_FILE)) { file_put_contents($PLANTS_FILE, "{}"); }
+if (!file_exists($PROFILES_FILE)) { file_put_contents($PROFILES_FILE, "{}"); }
 
-// helpers
+// Helpers
 function read_json($file) {
   $fp = fopen($file, 'r');
   if (!$fp) return [];
@@ -62,6 +62,7 @@ function read_json($file) {
   $data = json_decode($txt ?: "{}", true);
   return is_array($data) ? $data : [];
 }
+
 function write_json($file, $arr) {
   $fp = fopen($file, 'c+');
   if (!$fp) return false;
@@ -73,25 +74,28 @@ function write_json($file, $arr) {
   fclose($fp);
   return true;
 }
+
 function jbody() {
   $raw = file_get_contents('php://input');
   $j = json_decode($raw, true);
   return is_array($j) ? $j : [];
 }
+
 function ok($data = null) {
   echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
   exit;
 }
+
 function err($msg, $code = 400) {
   http_response_code($code);
   echo json_encode(['ok' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
   exit;
 }
+
 function valid_email($e) {
   return filter_var($e, FILTER_VALIDATE_EMAIL);
 }
 
-// Extract email from Authorization header or body
 function get_auth_email() {
   $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
   if (preg_match('/Bearer\s+(\S+)/', $auth, $m)) {
@@ -107,18 +111,18 @@ function get_auth_email() {
   return null;
 }
 
-// routing
+// Routing
 $method = $_SERVER['REQUEST_METHOD'];
 $path   = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// health
+// Health check
 if ($method === 'GET' && $path === '/api/health') {
   ok(['status' => 'up']);
 }
 
 // ============ ACCOUNT ENDPOINTS ============
 
-// signup
+// Signup
 if ($method === 'POST' && $path === '/api/signup') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
@@ -137,7 +141,7 @@ if ($method === 'POST' && $path === '/api/signup') {
   ok(['email' => $email]);
 }
 
-// signin
+// Signin
 if ($method === 'POST' && $path === '/api/signin') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
@@ -152,7 +156,7 @@ if ($method === 'POST' && $path === '/api/signin') {
   ok(['email' => $email, 'token' => $token]);
 }
 
-// change password
+// Change password
 if ($method === 'POST' && $path === '/api/change-password') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
@@ -170,7 +174,7 @@ if ($method === 'POST' && $path === '/api/change-password') {
   ok(['email' => $email]);
 }
 
-// delete account
+// Delete account
 if ($method === 'POST' && $path === '/api/delete-account') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
@@ -184,14 +188,64 @@ if ($method === 'POST' && $path === '/api/delete-account') {
   unset($db[$email]);
   if (!write_json($GLOBALS['ACCOUNTS_FILE'], $db)) err('write fail', 500);
   
-  // Also delete user's plants
+  // Delete user's plants
   $plants = read_json($GLOBALS['PLANTS_FILE']);
   if (isset($plants[$email])) {
     unset($plants[$email]);
     write_json($GLOBALS['PLANTS_FILE'], $plants);
   }
   
+  // Delete user's profile
+  $profiles = read_json($GLOBALS['PROFILES_FILE']);
+  if (isset($profiles[$email])) {
+    unset($profiles[$email]);
+    write_json($GLOBALS['PROFILES_FILE'], $profiles);
+  }
+  
   ok(['email' => $email]);
+}
+
+// ============ PROFILE ENDPOINTS ============
+
+// Get user profile
+if ($method === 'GET' && $path === '/api/profile') {
+  $email = get_auth_email();
+  if (!$email) err('unauthorized', 401);
+
+  $profiles = read_json($GLOBALS['PROFILES_FILE']);
+  $profile = $profiles[$email] ?? null;
+  
+  if (!$profile) {
+    // Return default profile
+    ok([
+      'name' => explode('@', $email)[0],
+      'image' => null
+    ]);
+  } else {
+    ok($profile);
+  }
+}
+
+// Save/Update user profile
+if ($method === 'POST' && $path === '/api/profile') {
+  $email = get_auth_email();
+  if (!$email) err('unauthorized', 401);
+
+  $b = jbody();
+  $name = trim($b['name'] ?? '');
+  $image = $b['image'] ?? null;
+  
+  if (!$name) err('name required');
+
+  $profiles = read_json($GLOBALS['PROFILES_FILE']);
+  $profiles[$email] = [
+    'name' => $name,
+    'image' => $image,
+    'updatedAt' => time()
+  ];
+  
+  if (!write_json($GLOBALS['PROFILES_FILE'], $profiles)) err('write fail', 500);
+  ok($profiles[$email]);
 }
 
 // ============ PLANT ENDPOINTS ============
@@ -220,7 +274,6 @@ if ($method === 'POST' && $path === '/api/plants') {
     $plants[$email] = [];
   }
   
-  // Add plant with unique ID
   $plant['id'] = uniqid('plant_', true);
   $plant['createdAt'] = time();
   $plants[$email][] = $plant;
@@ -244,7 +297,6 @@ if ($method === 'PUT' && $path === '/api/plants') {
     err('plant not found', 404);
   }
   
-  // Preserve creation data
   $plant['id'] = $plants[$email][$index]['id'] ?? uniqid('plant_', true);
   $plant['createdAt'] = $plants[$email][$index]['createdAt'] ?? time();
   $plant['updatedAt'] = time();
