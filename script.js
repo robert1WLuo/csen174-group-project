@@ -192,6 +192,7 @@ function loadChatMessages() {
   const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
   
   chatMessages.innerHTML = '';
+  messages.forEach(msg => {renderMessage(msg);}); 
   
   // Auto scroll to bottom
   chatMessages.scrollTop = chatMessages.scrollHeight;
