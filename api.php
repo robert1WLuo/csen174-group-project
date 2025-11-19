@@ -205,6 +205,7 @@ if ($method === 'POST' && $path === '/api/delete-account') {
   ok(['email' => $email]);
 }
 
+<<<<<<< Updated upstream
 // ============ PROFILE ENDPOINTS ============
 
 // Get user profile
@@ -231,6 +232,32 @@ if ($method === 'POST' && $path === '/api/profile') {
   $email = get_auth_email();
   if (!$email) err('unauthorized', 401);
 
+=======
+// ---- send reminder email (server-side) ----
+// POST /api/send-reminder  { to, subject, body }
+// if ($method === 'POST' && $path === '/api/send-reminder') {
+//   $b = jbody();
+//   $to = trim($b['to'] ?? '');
+//   $subject = $b['subject'] ?? 'Plant Reminder';
+//   $body = $b['body'] ?? '';
+
+//   if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) err('invalid to');
+//   if (!$body) err('empty body');
+
+//   // method A：PHP  mail()(need SMTP
+//   $headers = [];
+//   $headers[] = 'From: Plant Diary <no-reply@localhost>';
+//   $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+//   $ok = @mail($to, $subject, $body, implode("\r\n", $headers));
+
+//   if (!$ok) err('mail() failed on this machine', 500);
+//   ok(['sent' => true]);
+// }
+
+// ---- send reminder email (server-side, PHPMailer + Gmail SMTP) ----
+// POST /api/send-reminder  { to, subject, body }
+if ($method === 'POST' && $path === '/api/send-reminder') {
+>>>>>>> Stashed changes
   $b = jbody();
   $name = trim($b['name'] ?? '');
   $image = $b['image'] ?? null;
@@ -248,6 +275,7 @@ if ($method === 'POST' && $path === '/api/profile') {
   ok($profiles[$email]);
 }
 
+<<<<<<< Updated upstream
 // ============ PLANT ENDPOINTS ============
 
 // Get user's plants
@@ -325,6 +353,68 @@ if ($method === 'DELETE' && $path === '/api/plants') {
   
   if (!write_json($GLOBALS['PLANTS_FILE'], $plants)) err('write fail', 500);
   ok(['deleted' => true]);
+=======
+  // 1) load PHPMailer（composer require phpmailer/phpmailer）
+  $vendor = __DIR__ . '/vendor/autoload.php';
+  if (!file_exists($vendor)) {
+    err('PHPMailer not installed. Run `composer require phpmailer/phpmailer`', 500);
+  }
+  require_once $vendor;
+
+  // 2) SMTP
+  $SMTP_HOST = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
+  $SMTP_PORT = (int)(getenv('SMTP_PORT') ?: 587);     // 587+tls,back up：465+ssl
+  $SMTP_SECURE = getenv('SMTP_SECURE') ?: 'tls';      // 'tls' or 'ssl'
+  $SMTP_USER = getenv('SMTP_USER') ?: '';             // my gmail
+  $SMTP_PASS = getenv('SMTP_PASS') ?: '';             // 16 digit App Password
+  $FROM_EMAIL = getenv('FROM_EMAIL') ?: $SMTP_USER;   // Gmail from the same account
+  $FROM_NAME  = getenv('FROM_NAME') ?: 'Plant Diary';
+
+
+  if (!$SMTP_USER || !$SMTP_PASS) {
+    err('SMTP credentials missing. Set env: SMTP_USER / SMTP_PASS', 500);
+  }
+
+
+  $logDir = __DIR__ . '/data';
+  if (!is_dir($logDir)) { mkdir($logDir, 0777, true); }
+
+  try {
+    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+
+ 
+    $mail->SMTPDebug = 2; 
+    $debugStream = fopen($logDir . '/smtp-debug.log', 'a');
+    $mail->Debugoutput = function($str, $level) use ($debugStream) {
+      fwrite($debugStream, date('c') . " [L{$level}] " . $str . "\n");
+    };
+
+    // 4) SMTP connection
+    $mail->isSMTP();
+    $mail->Host       = $SMTP_HOST;
+    $mail->SMTPAuth   = true;
+    $mail->Username   = $SMTP_USER;
+    $mail->Password   = $SMTP_PASS;
+    $mail->SMTPSecure = $SMTP_SECURE; // 'tls' or 'ssl'
+    $mail->Port       = $SMTP_PORT;
+
+    // 5) get email body
+    $mail->CharSet = 'UTF-8';
+    $mail->setFrom($FROM_EMAIL, $FROM_NAME);
+    $mail->addAddress($to);
+    $mail->Subject = $subject;
+    $mail->Body    = $body;      
+
+    // 6) send
+    $mail->send();
+
+    if ($debugStream) fclose($debugStream);
+    ok(['sent' => true]);
+  } catch (Throwable $e) {
+    if (isset($debugStream) && $debugStream) fclose($debugStream);
+    err('SMTP send failed: ' . $e->getMessage(), 500);
+  }
+>>>>>>> Stashed changes
 }
 
 // 404 fallback

@@ -10,5 +10,9 @@
     "uo999p@gmail.com": {
         "hash": "$2y$12$Qhqp985JS.IfNiLnU0r7bumpAam3JnXi55pwfVUxDh7VoPIO04fAu",
         "createdAt": 1762815232
+    },
+    "debug_user@example.com": {
+        "hash": "$2y$12$ht\/jpnPE0FwGaxVEAF.HvuF6mHB0HxK607Jl1FDVKdVyrdcGWFryS",
+        "createdAt": 1762913433
     }
 }
