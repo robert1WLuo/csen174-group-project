@@ -24,6 +24,19 @@
             "id": "plant_691d29a18be248.84658076",
             "createdAt": 1763518881,
             "updatedAt": 1763520062
+        },
+        {
+            "name": "flower",
+            "description": "",
+            "image": null,
+            "dateAdded": "2025-11-19T02:48:51.128Z",
+            "reminder": {
+                "type": "fertilizing",
+                "frequency": 1,
+                "lastCareDate": "2025-11-18"
+            },
+            "id": "plant_691d301320aa86.23939564",
+            "createdAt": 1763520531
         }
     ]
 }
