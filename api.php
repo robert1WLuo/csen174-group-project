@@ -205,7 +205,6 @@ if ($method === 'POST' && $path === '/api/delete-account') {
   ok(['email' => $email]);
 }
 
-<<<<<<< Updated upstream
 // ============ PROFILE ENDPOINTS ============
 
 // Get user profile
@@ -215,9 +214,9 @@ if ($method === 'GET' && $path === '/api/profile') {
 
   $profiles = read_json($GLOBALS['PROFILES_FILE']);
   $profile = $profiles[$email] ?? null;
-  
+
   if (!$profile) {
-    // Return default profile
+    // default profile
     ok([
       'name' => explode('@', $email)[0],
       'image' => null
@@ -232,50 +231,22 @@ if ($method === 'POST' && $path === '/api/profile') {
   $email = get_auth_email();
   if (!$email) err('unauthorized', 401);
 
-=======
-// ---- send reminder email (server-side) ----
-// POST /api/send-reminder  { to, subject, body }
-// if ($method === 'POST' && $path === '/api/send-reminder') {
-//   $b = jbody();
-//   $to = trim($b['to'] ?? '');
-//   $subject = $b['subject'] ?? 'Plant Reminder';
-//   $body = $b['body'] ?? '';
-
-//   if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) err('invalid to');
-//   if (!$body) err('empty body');
-
-//   // method A：PHP  mail()(need SMTP
-//   $headers = [];
-//   $headers[] = 'From: Plant Diary <no-reply@localhost>';
-//   $headers[] = 'Content-Type: text/plain; charset=UTF-8';
-//   $ok = @mail($to, $subject, $body, implode("\r\n", $headers));
-
-//   if (!$ok) err('mail() failed on this machine', 500);
-//   ok(['sent' => true]);
-// }
-
-// ---- send reminder email (server-side, PHPMailer + Gmail SMTP) ----
-// POST /api/send-reminder  { to, subject, body }
-if ($method === 'POST' && $path === '/api/send-reminder') {
->>>>>>> Stashed changes
   $b = jbody();
   $name = trim($b['name'] ?? '');
   $image = $b['image'] ?? null;
-  
   if (!$name) err('name required');
 
   $profiles = read_json($GLOBALS['PROFILES_FILE']);
   $profiles[$email] = [
-    'name' => $name,
-    'image' => $image,
+    'name'      => $name,
+    'image'     => $image,
     'updatedAt' => time()
   ];
-  
+
   if (!write_json($GLOBALS['PROFILES_FILE'], $profiles)) err('write fail', 500);
   ok($profiles[$email]);
 }
 
-<<<<<<< Updated upstream
 // ============ PLANT ENDPOINTS ============
 
 // Get user's plants
@@ -301,11 +272,11 @@ if ($method === 'POST' && $path === '/api/plants') {
   if (!isset($plants[$email])) {
     $plants[$email] = [];
   }
-  
-  $plant['id'] = uniqid('plant_', true);
+
+  $plant['id']        = uniqid('plant_', true);
   $plant['createdAt'] = time();
-  $plants[$email][] = $plant;
-  
+  $plants[$email][]   = $plant;
+
   if (!write_json($GLOBALS['PLANTS_FILE'], $plants)) err('write fail', 500);
   ok($plant);
 }
@@ -324,13 +295,14 @@ if ($method === 'PUT' && $path === '/api/plants') {
   if (!isset($plants[$email]) || !isset($plants[$email][$index])) {
     err('plant not found', 404);
   }
-  
-  $plant['id'] = $plants[$email][$index]['id'] ?? uniqid('plant_', true);
+
+  // keep id/createdAt
+  $plant['id']        = $plants[$email][$index]['id'] ?? uniqid('plant_', true);
   $plant['createdAt'] = $plants[$email][$index]['createdAt'] ?? time();
   $plant['updatedAt'] = time();
-  
+
   $plants[$email][$index] = $plant;
-  
+
   if (!write_json($GLOBALS['PLANTS_FILE'], $plants)) err('write fail', 500);
   ok($plant);
 }
@@ -348,12 +320,24 @@ if ($method === 'DELETE' && $path === '/api/plants') {
   if (!isset($plants[$email]) || !isset($plants[$email][$index])) {
     err('plant not found', 404);
   }
-  
+
   array_splice($plants[$email], $index, 1);
-  
+
   if (!write_json($GLOBALS['PLANTS_FILE'], $plants)) err('write fail', 500);
   ok(['deleted' => true]);
-=======
+}
+
+// ---- send reminder email (server-side, PHPMailer + Gmail SMTP) ----
+// POST /api/send-reminder  { to, subject, body }
+if ($method === 'POST' && $path === '/api/send-reminder') {
+  $b = jbody();
+  $to      = trim($b['to'] ?? '');
+  $subject = $b['subject'] ?? 'Plant Reminder';
+  $body    = $b['body'] ?? '';
+
+  if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) err('invalid to');
+  if (!$body) err('empty body');
+
   // 1) load PHPMailer（composer require phpmailer/phpmailer）
   $vendor = __DIR__ . '/vendor/autoload.php';
   if (!file_exists($vendor)) {
@@ -361,35 +345,34 @@ if ($method === 'DELETE' && $path === '/api/plants') {
   }
   require_once $vendor;
 
-  // 2) SMTP
-  $SMTP_HOST = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-  $SMTP_PORT = (int)(getenv('SMTP_PORT') ?: 587);     // 587+tls,back up：465+ssl
-  $SMTP_SECURE = getenv('SMTP_SECURE') ?: 'tls';      // 'tls' or 'ssl'
-  $SMTP_USER = getenv('SMTP_USER') ?: '';             // my gmail
-  $SMTP_PASS = getenv('SMTP_PASS') ?: '';             // 16 digit App Password
-  $FROM_EMAIL = getenv('FROM_EMAIL') ?: $SMTP_USER;   // Gmail from the same account
-  $FROM_NAME  = getenv('FROM_NAME') ?: 'Plant Diary';
-
+  // 2) SMTP config (from env)
+  $SMTP_HOST   = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
+  $SMTP_PORT   = (int)(getenv('SMTP_PORT') ?: 587);
+  $SMTP_SECURE = getenv('SMTP_SECURE') ?: 'tls';
+  $SMTP_USER   = getenv('SMTP_USER') ?: '';
+  $SMTP_PASS   = getenv('SMTP_PASS') ?: '';
+  $FROM_EMAIL  = getenv('FROM_EMAIL') ?: $SMTP_USER;
+  $FROM_NAME   = getenv('FROM_NAME') ?: 'Plant Diary';
 
   if (!$SMTP_USER || !$SMTP_PASS) {
     err('SMTP credentials missing. Set env: SMTP_USER / SMTP_PASS', 500);
   }
 
-
+  // ensure log dir
   $logDir = __DIR__ . '/data';
   if (!is_dir($logDir)) { mkdir($logDir, 0777, true); }
 
   try {
     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
 
- 
-    $mail->SMTPDebug = 2; 
+    // debug log to data/smtp-debug.log
+    $mail->SMTPDebug = 2;
     $debugStream = fopen($logDir . '/smtp-debug.log', 'a');
     $mail->Debugoutput = function($str, $level) use ($debugStream) {
       fwrite($debugStream, date('c') . " [L{$level}] " . $str . "\n");
     };
 
-    // 4) SMTP connection
+    // SMTP connection
     $mail->isSMTP();
     $mail->Host       = $SMTP_HOST;
     $mail->SMTPAuth   = true;
@@ -398,14 +381,13 @@ if ($method === 'DELETE' && $path === '/api/plants') {
     $mail->SMTPSecure = $SMTP_SECURE; // 'tls' or 'ssl'
     $mail->Port       = $SMTP_PORT;
 
-    // 5) get email body
+    // build mail
     $mail->CharSet = 'UTF-8';
     $mail->setFrom($FROM_EMAIL, $FROM_NAME);
     $mail->addAddress($to);
     $mail->Subject = $subject;
-    $mail->Body    = $body;      
+    $mail->Body    = $body;
 
-    // 6) send
     $mail->send();
 
     if ($debugStream) fclose($debugStream);
@@ -414,7 +396,6 @@ if ($method === 'DELETE' && $path === '/api/plants') {
     if (isset($debugStream) && $debugStream) fclose($debugStream);
     err('SMTP send failed: ' . $e->getMessage(), 500);
   }
->>>>>>> Stashed changes
 }
 
 // 404 fallback
