@@ -193,34 +193,6 @@ function loadChatMessages() {
   
   chatMessages.innerHTML = '';
   
-  if (messages.length === 0) {
-    // Add sample messages if no messages exist
-    const sampleMessages = [
-      {
-        username: 'andrewjhinh@gmail.com',
-        timestamp: 'May 24, 09:50 PM',
-        content: 'Testing',
-        isOwn: false
-      },
-      {
-        username: 'ahinh',
-        timestamp: 'May 25, 05:59 PM',
-        content: 'Yes?',
-        isOwn: false
-      },
-      {
-        username: 'andrewjhinh',
-        timestamp: 'May 27, 05:51 PM',
-        content: 'Hello!',
-        isOwn: false
-      }
-    ];
-    
-    sampleMessages.forEach(msg => renderMessage(msg));
-  } else {
-    messages.forEach(msg => renderMessage(msg));
-  }
-  
   // Auto scroll to bottom
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
