@@ -6,16 +6,17 @@ let currentImageData = null;
 let notifiedReminders = new Set();
 
 // Check authentication and load user-specific data
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     if (!checkAuth()) return;
     
     loadUserInfo();
-    loadPlants();
-    
-    // Check reminders every hour
-    setInterval(checkReminders, 3600000);
-    // Check immediately on load
+    // wait until loading done
+    await loadPlants();
+
+    // check imediately on load
     checkReminders();
+    // check hourly
+    setInterval(checkReminders, 3600000);
 });
 
 // Check if user is authenticated
@@ -301,6 +302,8 @@ function checkReminders() {
     const email = localStorage.getItem('userEmail');
     if (!email) return;
 
+    console.log('[checkReminders] plants.length =', plants.length);
+
     plants.forEach((plant, index) => {
         const status = getReminderStatus(plant);
         if (!status) return;
@@ -322,7 +325,6 @@ function checkReminders() {
         }
     });
 }
-
 
 async function sendReminderEmail(plant, status, isAdvance1Day) {
     const email = localStorage.getItem('userEmail');

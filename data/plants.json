@@ -19,10 +19,11 @@
             "reminder": {
                 "type": "watering",
                 "frequency": 1,
-                "lastCareDate": "2025-11-17"
+                "lastCareDate": "2025-11-16"
             },
             "id": "plant_691d29a18be248.84658076",
-            "createdAt": 1763518881
+            "createdAt": 1763518881,
+            "updatedAt": 1763520062
         }
     ]
 }
