@@ -151,7 +151,7 @@ function previewImage(event) {
         reader.onload = function(e) {
             currentImageData = e.target.result;
             preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-            preview.style.display = 'block';
+            preview.style.display = 'flex';
         };
         reader.readAsDataURL(file);
     } else {

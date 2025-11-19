@@ -339,18 +339,31 @@ main {
     border-color: #0077cc;
 }
 
-.image-preview {
-    margin-top: 1rem;
-    width: 100%;
-    max-height: 300px;
-    display: none;
+
+
+#image-preview {
+    margin-top: 10px;
+    width: 100%;         
+    max-width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+
+    background-color: #f5f5f5;
+    border-radius: 12px;
+
+    text-align: center;   
+    display: none;       
 }
 
-.image-preview img {
-    width: 100%;
-    height: auto;
-    border-radius: 5px;
+
+#image-preview img {
+    max-width: 100%;      
+    height: auto;        
+    display: inline-block;
+    border-radius: 10px;
 }
+
+
 
 .modal-buttons {
     display: flex;
