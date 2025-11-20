@@ -5,20 +5,22 @@
  * Start server:  php -S 127.0.0.1:8000 api.php
  ***********************/
 
-// Built-in server router prelude 
+//// built-in server router prelude to handle static files
 if (php_sapi_name() === 'cli-server') {
   $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
   $file = __DIR__ . $path;
+    // if request is not root and file exists, serve it directly
   if ($path !== '/' && file_exists($file) && !is_dir($file)) {
     return false;
   }
 }
 
+// enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('log_errors', '0');
 
-// CORS
+// CORS configuration
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = [
   'http://127.0.0.1:8000',
@@ -26,32 +28,37 @@ $allowed = [
   'http://127.0.0.1:5500',
   'http://localhost:5500',
 ];
+// allow only specific origins
 if ($origin && in_array($origin, $allowed, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header('Vary: Origin');
 }
+// allow methods and headers for api requests
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// set default response type to json
 header('Content-Type: application/json; charset=utf-8');
 
+// handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   http_response_code(200);
   echo json_encode(['ok' => true, 'data' => 'preflight']);
   exit;
 }
 
-// Database files
+// database file paths
 $DB_DIR  = __DIR__ . '/data';
 $ACCOUNTS_FILE = $DB_DIR . '/accounts.json';
 $PLANTS_FILE = $DB_DIR . '/plants.json';
 $PROFILES_FILE = $DB_DIR . '/profiles.json';
 
+// ensure data directory and files exist
 if (!is_dir($DB_DIR)) { mkdir($DB_DIR, 0777, true); }
 if (!file_exists($ACCOUNTS_FILE)) { file_put_contents($ACCOUNTS_FILE, "{}"); }
 if (!file_exists($PLANTS_FILE)) { file_put_contents($PLANTS_FILE, "{}"); }
 if (!file_exists($PROFILES_FILE)) { file_put_contents($PROFILES_FILE, "{}"); }
 
-// Helpers
+// helper to read json safely with file lock
 function read_json($file) {
   $fp = fopen($file, 'r');
   if (!$fp) return [];
@@ -63,6 +70,7 @@ function read_json($file) {
   return is_array($data) ? $data : [];
 }
 
+// helper to write json safely with file lock
 function write_json($file, $arr) {
   $fp = fopen($file, 'c+');
   if (!$fp) return false;
@@ -75,27 +83,32 @@ function write_json($file, $arr) {
   return true;
 }
 
+//helper to parse request body as json
 function jbody() {
   $raw = file_get_contents('php://input');
   $j = json_decode($raw, true);
   return is_array($j) ? $j : [];
 }
 
+// helper to send success response
 function ok($data = null) {
   echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
+// helper to send error response
 function err($msg, $code = 400) {
   http_response_code($code);
   echo json_encode(['ok' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
+// helper to validate email format
 function valid_email($e) {
   return filter_var($e, FILTER_VALIDATE_EMAIL);
 }
 
+// helper to extract email from bearer token
 function get_auth_email() {
   $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
   if (preg_match('/Bearer\s+(\S+)/', $auth, $m)) {
@@ -111,28 +124,29 @@ function get_auth_email() {
   return null;
 }
 
-// Routing
+// routing setup
 $method = $_SERVER['REQUEST_METHOD'];
 $path   = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// Health check
+// health check
 if ($method === 'GET' && $path === '/api/health') {
   ok(['status' => 'up']);
 }
 
-// ============ ACCOUNT ENDPOINTS ============
+// ============ USER ACCOUNT IMPLEMENTATION ============
 
-// Signup
+// signup
 if ($method === 'POST' && $path === '/api/signup') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
   $password = $b['password'] ?? '';
+    // validate input
   if (!$email || !$password) err('email/password required');
   if (!valid_email($email)) err('invalid email');
 
   $db = read_json($GLOBALS['ACCOUNTS_FILE']);
   if (isset($db[$email])) err('account exists', 409);
-
+ // store hashed password
   $db[$email] = [
     'hash' => password_hash($password, PASSWORD_DEFAULT),
     'createdAt' => time()
@@ -141,7 +155,7 @@ if ($method === 'POST' && $path === '/api/signup') {
   ok(['email' => $email]);
 }
 
-// Signin
+// signin
 if ($method === 'POST' && $path === '/api/signin') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
@@ -151,12 +165,12 @@ if ($method === 'POST' && $path === '/api/signin') {
   $db = read_json($GLOBALS['ACCOUNTS_FILE']);
   if (!isset($db[$email])) err('account not found', 404);
   if (!password_verify($password, $db[$email]['hash'])) err('incorrect password', 401);
-
+// generate simple base64 token
   $token = base64_encode($email . '|' . time());
   ok(['email' => $email, 'token' => $token]);
 }
 
-// Change password
+// change password
 if ($method === 'POST' && $path === '/api/change-password') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
@@ -167,14 +181,14 @@ if ($method === 'POST' && $path === '/api/change-password') {
   $db = read_json($GLOBALS['ACCOUNTS_FILE']);
   if (!isset($db[$email])) err('account not found', 404);
   if (!password_verify($old, $db[$email]['hash'])) err('incorrect password', 401);
-
+// update password hash
   $db[$email]['hash'] = password_hash($new, PASSWORD_DEFAULT);
   $db[$email]['changedAt'] = time();
   if (!write_json($GLOBALS['ACCOUNTS_FILE'], $db)) err('write fail', 500);
   ok(['email' => $email]);
 }
 
-// Delete account
+// delete account
 if ($method === 'POST' && $path === '/api/delete-account') {
   $b = jbody();
   $email = trim($b['email'] ?? '');
@@ -188,14 +202,14 @@ if ($method === 'POST' && $path === '/api/delete-account') {
   unset($db[$email]);
   if (!write_json($GLOBALS['ACCOUNTS_FILE'], $db)) err('write fail', 500);
   
-  // Delete user's plants
+  // delete user's plants
   $plants = read_json($GLOBALS['PLANTS_FILE']);
   if (isset($plants[$email])) {
     unset($plants[$email]);
     write_json($GLOBALS['PLANTS_FILE'], $plants);
   }
   
-  // Delete user's profile
+  // delete user's profile
   $profiles = read_json($GLOBALS['PROFILES_FILE']);
   if (isset($profiles[$email])) {
     unset($profiles[$email]);
@@ -205,9 +219,9 @@ if ($method === 'POST' && $path === '/api/delete-account') {
   ok(['email' => $email]);
 }
 
-// ============ PROFILE ENDPOINTS ============
+// ============ USER PROFILE  IMPLEMENTATION============
 
-// Get user profile
+// get user profile
 if ($method === 'GET' && $path === '/api/profile') {
   $email = get_auth_email();
   if (!$email) err('unauthorized', 401);
@@ -247,9 +261,9 @@ if ($method === 'POST' && $path === '/api/profile') {
   ok($profiles[$email]);
 }
 
-// ============ PLANT ENDPOINTS ============
+// ============ PLANT IMPLEMENTATION ============
 
-// Get user's plants
+// get user's plants
 if ($method === 'GET' && $path === '/api/plants') {
   $email = get_auth_email();
   if (!$email) err('unauthorized', 401);
@@ -259,7 +273,7 @@ if ($method === 'GET' && $path === '/api/plants') {
   ok($userPlants);
 }
 
-// Add a plant
+// add a plant
 if ($method === 'POST' && $path === '/api/plants') {
   $email = get_auth_email();
   if (!$email) err('unauthorized', 401);
@@ -281,7 +295,7 @@ if ($method === 'POST' && $path === '/api/plants') {
   ok($plant);
 }
 
-// Update a plant
+// update a plant
 if ($method === 'PUT' && $path === '/api/plants') {
   $email = get_auth_email();
   if (!$email) err('unauthorized', 401);
@@ -307,7 +321,7 @@ if ($method === 'PUT' && $path === '/api/plants') {
   ok($plant);
 }
 
-// Delete a plant
+// delete a plant
 if ($method === 'DELETE' && $path === '/api/plants') {
   $email = get_auth_email();
   if (!$email) err('unauthorized', 401);
