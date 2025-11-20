@@ -1,29 +1,29 @@
-const API = "http://127.0.0.1:8000";
-const MAX_PLANTS = 5;
-let plants = [];
-let editingIndex = -1;
-let currentImageData = null;
-let notifiedReminders = new Set();
+const API = "http://127.0.0.1:8000"; // base api url
+const MAX_PLANTS = 5; // maximum number of plants allowed per user
+let plants = []; // array to hold plant data
+let editingIndex = -1; // index of plant currently being edited (-1 means none)
+let currentImageData = null; // stores image data for preview/upload
+let notifiedReminders = new Set(); // track reminders already notified
 
-// Check authentication and load user-specific data
+// check authentication and load user-specific data
 window.addEventListener('DOMContentLoaded', async () => {
     if (!checkAuth()) return;
     
-    loadUserInfo();
-    // wait until loading done
+     loadUserInfo();
+    // wait until plants are loaded
     await loadPlants();
 
-    // check imediately on load
+    // check reminders immediately
     checkReminders();
-    // check hourly
+    // check reminders every hour
     setInterval(checkReminders, 3600000);
 });
 
-// Check if user is authenticated
+// check if user is authenticated
 function checkAuth() {
     const token = localStorage.getItem('token');
     const email = localStorage.getItem('userEmail');
-    
+    // redirect to login if not authenticated
     if (!token || !email) {
         window.location.href = 'login.html';
         return false;
@@ -31,14 +31,14 @@ function checkAuth() {
     return true;
 }
 
-// Load user information
+// load user information and display username
 function loadUserInfo() {
     const email = localStorage.getItem('userEmail');
     const username = email.split('@')[0];
     document.getElementById('userInfo').textContent = `Logged in as: ${username}`;
 }
 
-// Logout function
+// logout function
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('token');
@@ -51,7 +51,8 @@ function goBack() {
     window.location.href = 'structure.html';
 }
 
-// API Helper functions
+
+// api helper function to send requests with authorization
 async function apiRequest(endpoint, method = 'GET', body = null) {
     const token = localStorage.getItem('token');
     const options = {
@@ -77,6 +78,7 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
         return data.data;
     } catch (error) {
         console.error('API Error:', error);
+        // handle expired session
         if (error.message.includes('unauthorized')) {
             alert('Session expired. Please login again.');
             window.location.href = 'login.html';
@@ -85,7 +87,7 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
     }
 }
 
-// Load plants from server
+// load plants from server
 async function loadPlants() {
     try {
         plants = await apiRequest('/api/plants');
@@ -97,6 +99,7 @@ async function loadPlants() {
     }
 }
 
+// open modal for adding a new plant
 function openAddModal() {
     if (plants.length >= MAX_PLANTS) {
         alert(`You can only add up to ${MAX_PLANTS} plants.`);
@@ -110,6 +113,7 @@ function openAddModal() {
     document.getElementById('plantModal').classList.add('active');
 }
 
+// open modal for editing an existing plant
 function openEditModal(index) {
     editingIndex = index;
     const plant = plants[index];
@@ -118,13 +122,14 @@ function openEditModal(index) {
     document.getElementById('modalTitle').textContent = 'Edit Plant';
     document.getElementById('plantName').value = plant.name;
     document.getElementById('plantDescription').value = plant.description;
-    
+
+    // populate reminder fields if they exist
     if (plant.reminder) {
         document.getElementById('reminderType').value = plant.reminder.type || '';
         document.getElementById('reminderFrequency').value = plant.reminder.frequency || '';
         document.getElementById('lastCareDate').value = plant.reminder.lastCareDate || '';
     }
-    
+        // show image preview if available
     if (plant.image) {
         const preview = document.getElementById('imagePreview');
         preview.innerHTML = `<img src="${plant.image}" alt="Preview">`;
@@ -133,7 +138,7 @@ function openEditModal(index) {
     
     document.getElementById('plantModal').classList.add('active');
 }
-
+// close modal and reset form
 function closeModal() {
     document.getElementById('plantModal').classList.remove('active');
     document.getElementById('plantForm').reset();
@@ -142,6 +147,7 @@ function closeModal() {
     currentImageData = null;
 }
 
+// preview image before saving plant
 function previewImage(event) {
     const file = event.target.files[0];
     const preview = document.getElementById('imagePreview');
@@ -160,6 +166,7 @@ function previewImage(event) {
     }
 }
 
+// handle form submission for adding or editing plant
 document.getElementById('plantForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -181,10 +188,10 @@ document.getElementById('plantForm').addEventListener('submit', async function(e
 
     try {
         if (editingIndex === -1) {
-            // Add new plant
+        // add new plant
             await apiRequest('/api/plants', 'POST', { plant: plantData });
         } else {
-            // Update existing plant
+            // update existing plant
             await apiRequest('/api/plants', 'PUT', { index: editingIndex, plant: plantData });
         }
         
@@ -196,6 +203,7 @@ document.getElementById('plantForm').addEventListener('submit', async function(e
     }
 });
 
+// delete plant by index
 async function deletePlant(index) {
     if (confirm('Are you sure you want to delete this plant?')) {
         try {
@@ -208,6 +216,7 @@ async function deletePlant(index) {
     }
 }
 
+// calculate reminder status for a plant
 function getReminderStatus(plant) {
     if (!plant.reminder || !plant.reminder.lastCareDate || !plant.reminder.frequency) {
         return null;
@@ -225,6 +234,7 @@ function getReminderStatus(plant) {
     };
 }
 
+// return emoji icon based on reminder type
 function getReminderIcon(type) {
     const icons = {
         watering: '💧',
@@ -236,6 +246,7 @@ function getReminderIcon(type) {
     return icons[type] || '⏰';
 }
 
+// render plant cards in container
 function renderPlants() {
     const container = document.getElementById('plantsContainer');
     const emptyState = document.getElementById('emptyState');
@@ -251,7 +262,7 @@ function renderPlants() {
         const reminderStatus = getReminderStatus(plant);
         let reminderBadge = '';
         let reminderInfo = '';
-
+    // build reminder badge and info text
         if (reminderStatus) {
             if (reminderStatus.isDue) {
                 reminderBadge = '<div class="reminder-badge">Due Now!</div>';
@@ -379,4 +390,5 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+
 }
