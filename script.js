@@ -1,13 +1,13 @@
 const API = "http://127.0.0.1:8000";
 let currentProfileImageData = null;
 
-// Check authentication on page load
+// check authentication on page load
 window.addEventListener('DOMContentLoaded', function() {
   checkAuth();
   loadUserProfile();
   loadChatMessages();
   
-  // Set up chat input Enter key listener
+  // set up chat input Enter key listener
   const chatInput = document.getElementById('chatInput');
   if (chatInput) {
     chatInput.addEventListener('keypress', function(e) {
@@ -18,7 +18,7 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Check if user is authenticated
+// check if user is authenticated
 function checkAuth() {
   const token = localStorage.getItem('token');
   const email = localStorage.getItem('userEmail');
@@ -65,16 +65,16 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
   }
 }
 
-// Load user profile information
+// load user profile information
 async function loadUserProfile() {
   const email = localStorage.getItem('userEmail');
   if (!email) return;
   
   try {
-    // Get profile from server
+    // get profile from server
     const profile = await apiRequest('/api/profile');
     
-    // Display profile
+    // display profile
     const displayName = profile.name || email.split('@')[0];
     const profileImage = profile.image || 'images/github.png';
     
@@ -82,14 +82,14 @@ async function loadUserProfile() {
     document.getElementById('userEmail').textContent = email;
     document.getElementById('profileImage').src = profileImage;
   } catch (error) {
-    // If profile doesn't exist yet, use defaults
+    // if profile doesn't exist yet, use defaults
     const username = email.split('@')[0];
     document.getElementById('userName').textContent = username;
     document.getElementById('userEmail').textContent = email;
   }
 }
 
-// Open edit profile modal
+// open edit profile modal
 function openEditProfileModal() {
   const email = localStorage.getItem('userEmail');
   const currentName = document.getElementById('userName').textContent;
@@ -102,13 +102,13 @@ function openEditProfileModal() {
   document.getElementById('editProfileModal').classList.add('active');
 }
 
-// Close edit profile modal
+// close edit profile modal
 function closeEditProfileModal() {
   document.getElementById('editProfileModal').classList.remove('active');
   currentProfileImageData = null;
 }
 
-// Preview profile image
+// preview profile image
 function previewProfileImage(event) {
   const file = event.target.files[0];
   const preview = document.getElementById('profileImagePreview');
@@ -123,7 +123,7 @@ function previewProfileImage(event) {
   }
 }
 
-// Handle profile edit form submission
+// handle profile edit form submission
 document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   
@@ -142,7 +142,7 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
     
     await apiRequest('/api/profile', 'POST', profileData);
     
-    // Update display
+    // update display
     document.getElementById('userName').textContent = name;
     if (currentProfileImageData) {
       document.getElementById('profileImage').src = currentProfileImageData;
@@ -156,7 +156,7 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
   }
 });
 
-// Logout function
+// logout function
 function logout() {
   if (confirm('Are you sure you want to logout?')) {
     // Clear chat messages from localStorage for this user
@@ -164,12 +164,12 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('userEmail');
     
-    // Redirect to login
+    // redirect to login
     window.location.href = 'login.html';
   }
 }
 
-// Navigation functions
+// navigation functions
 function showProfile() {
   document.getElementById('profile').classList.add('active');
   document.getElementById('chat').classList.remove('active');
@@ -181,7 +181,7 @@ function showChat() {
   loadChatMessages();
 }
 
-// Chat functionality with user-specific storage
+// chat functionality with user-specific storage
 function getChatStorageKey() {
   return 'chatMessages'; // Shared chat for all users
 }
@@ -236,25 +236,26 @@ function sendMessage() {
     content: message
   };
 
-  // Save to localStorage
+  // save to localStorage
   const storageKey = getChatStorageKey();
   const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
   messages.push(messageData);
   localStorage.setItem(storageKey, JSON.stringify(messages));
 
-  // Render the message
+  // render the message
   renderMessage(messageData);
   
   input.value = '';
 
-  // Auto scroll to bottom
+  // auto scroll to bottom
   const chatMessages = document.getElementById('chatMessages');
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Escape HTML to prevent XSS
+// escape HTML to prevent XSS
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+
 }
